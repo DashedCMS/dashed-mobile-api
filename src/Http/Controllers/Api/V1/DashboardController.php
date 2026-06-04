@@ -8,36 +8,19 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Dashed\DashedCore\Classes\Sites;
-use Dashed\DashedEcommerceCore\Models\Order;
-use Dashed\DashedLivechat\Models\ChatConversation;
+use Dashed\DashedMobileApi\MobileApiRegistry;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, MobileApiRegistry $registry): JsonResponse
     {
-        $site = Sites::getActive();
+        $site = (string) Sites::getActive();
+        $stats = [];
 
-        $ordersToday = Order::thisSite()
-            ->isPaid()
-            ->whereDate('created_at', now()->toDateString())
-            ->get();
+        foreach ($registry->dashboardContributors() as $contributor) {
+            $stats = array_merge($stats, $contributor($site));
+        }
 
-        $openOrders = Order::thisSite()->unhandled()->count();
-
-        $waitingHuman = ChatConversation::where('site_id', $site)
-            ->where('mode', 'waiting_human')
-            ->count();
-
-        $openConversations = ChatConversation::where('site_id', $site)
-            ->where('status', 'active')
-            ->count();
-
-        return response()->json([
-            'orders_today_count' => $ordersToday->count(),
-            'revenue_today' => round((float) $ordersToday->sum('total'), 2),
-            'open_orders' => $openOrders,
-            'chat_waiting_human' => $waitingHuman,
-            'chat_open' => $openConversations,
-        ]);
+        return response()->json($stats);
     }
 }

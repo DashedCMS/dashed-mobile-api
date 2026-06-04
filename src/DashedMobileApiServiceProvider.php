@@ -6,8 +6,8 @@ namespace Dashed\DashedMobileApi;
 
 use Spatie\LaravelPackageTools\Package;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
-use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Dashed\DashedMobileApi\Http\Middleware\EnsureSiteContext;
 
 class DashedMobileApiServiceProvider extends PackageServiceProvider

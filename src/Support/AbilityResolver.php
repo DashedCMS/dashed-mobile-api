@@ -6,31 +6,26 @@ namespace Dashed\DashedMobileApi\Support;
 
 use Illuminate\Support\Str;
 use Dashed\DashedCore\Models\User;
+use Dashed\DashedMobileApi\MobileApiRegistry;
 
 class AbilityResolver
 {
-    public const ALL = [
-        'products.read',
-        'products.write',
-        'orders.read',
-        'orders.write',
-        'chat.read',
-        'chat.reply',
-        'chat.takeover',
-        'dashboard.read',
-        'devices.write',
-    ];
+    public function __construct(private MobileApiRegistry $registry)
+    {
+    }
 
     /**
      * @return array<int, string>
      */
     public function abilitiesFor(User $user): array
     {
+        $known = array_values(array_unique([...$this->registry->abilities(), 'devices.write']));
+
         if (in_array($user->role, ['superadmin', 'admin'], true)) {
-            return self::ALL;
+            return $known;
         }
 
-        $map = config('dashed-mobile-api.role_abilities', []);
+        $map = $this->registry->roleAbilities();
         $abilities = ['devices.write'];
 
         foreach ($user->roles as $role) {
@@ -38,9 +33,9 @@ class AbilityResolver
             $abilities = array_merge($abilities, $map[$slug] ?? []);
 
             $extra = is_array($role->extra_permissions) ? $role->extra_permissions : [];
-            $abilities = array_merge($abilities, array_values(array_intersect($extra, self::ALL)));
+            $abilities = array_merge($abilities, array_values(array_intersect($extra, $known)));
         }
 
-        return array_values(array_intersect(array_unique($abilities), self::ALL));
+        return array_values(array_intersect(array_unique($abilities), $known));
     }
 }

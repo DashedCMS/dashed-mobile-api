@@ -1,0 +1,34 @@
+{
+    "name": "dashed/dashed-mobile-api",
+    "description": "Site-bewuste mobiele REST-API voor Dashed CMS",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "dashed/dashed-core": "*",
+        "laravel/sanctum": "^4.0",
+        "spatie/laravel-package-tools": "^1.16"
+    },
+    "suggest": {
+        "dashed/dashed-ecommerce-core": "Nodig voor de product- en order-endpoints",
+        "dashed/dashed-livechat": "Nodig voor de chat-endpoints"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9",
+        "pestphp/pest": "^2.35"
+    },
+    "autoload": {
+        "psr-4": {
+            "Dashed\\DashedMobileApi\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Dashed\\DashedMobileApi\\DashedMobileApiServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

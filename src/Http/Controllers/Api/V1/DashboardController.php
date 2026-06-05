@@ -9,16 +9,19 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Dashed\DashedCore\Classes\Sites;
 use Dashed\DashedMobileApi\MobileApiRegistry;
+use Dashed\DashedMobileApi\Support\DashboardPeriod;
 
 class DashboardController extends Controller
 {
     public function index(Request $request, MobileApiRegistry $registry): JsonResponse
     {
         $site = (string) Sites::getActive();
-        $stats = [];
+        $period = DashboardPeriod::fromRequest($request->query('period'));
+
+        $stats = ['period' => $period->key];
 
         foreach ($registry->dashboardContributors() as $contributor) {
-            $stats = array_merge($stats, $contributor($site));
+            $stats = array_merge($stats, $contributor($site, $period));
         }
 
         return response()->json($stats);

@@ -13,26 +13,63 @@ class EnsureSiteContext
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $siteId = $request->header('X-Site-Id');
-
-        if (! $siteId) {
-            return response()->json(['message' => 'X-Site-Id header is verplicht.'], 400);
-        }
-
+        $sites = Sites::getSites();
         $validIds = array_map(
             static fn (array $site): string => (string) $site['id'],
-            Sites::getSites(),
+            $sites,
         );
 
-        if (! in_array((string) $siteId, $validIds, true)) {
-            return response()->json(['message' => 'Onbekende site.'], 400);
+        $headerSite = (string) $request->header('X-Site-Id', '');
+
+        if ($headerSite !== '' && in_array($headerSite, $validIds, true)) {
+            // 1. Expliciete, geldige site-keuze respecteren (multi-site).
+            $siteId = $headerSite;
+        } else {
+            // 2. Anders: oplossen via het domein van het verzoek...
+            //    ...en anders terugvallen op de standaard-/eerste site.
+            $siteId = $this->resolveByHost($request->getHost(), $sites)
+                ?? (string) (Sites::getFirstSite()['id'] ?? '');
+        }
+
+        if ($siteId === '') {
+            return response()->json(['message' => 'Geen site geconfigureerd.'], 400);
         }
 
         // Single switch every existing thisSite()/publicShowable()/unhandled()
         // scope reads through via Sites::getActive().
-        config(['dashed-core.dashed_site_id' => (string) $siteId]);
-        $request->attributes->set('mobile_site_id', (string) $siteId);
+        config(['dashed-core.dashed_site_id' => $siteId]);
+        $request->attributes->set('mobile_site_id', $siteId);
 
         return $next($request);
+    }
+
+    /**
+     * Koppel het verzoek-domein aan een site die datzelfde domein declareert
+     * (via een url/domain/host-veld). Geeft null als er geen match is.
+     */
+    private function resolveByHost(string $host, array $sites): ?string
+    {
+        if ($host === '') {
+            return null;
+        }
+
+        // 1. Site die dit domein expliciet declareert (multi-site: 'url'/'domain'/'host').
+        foreach ($sites as $site) {
+            foreach (['url', 'domain', 'host'] as $key) {
+                $value = $site[$key] ?? null;
+                if (is_string($value) && $value !== '' && str_contains($value, $host)) {
+                    return (string) $site['id'];
+                }
+            }
+        }
+
+        // 2. Single-site: het verzoek-domein is de app-URL → de actieve/eerste site.
+        if (str_contains((string) config('app.url'), $host)) {
+            $id = Sites::getFirstSite()['id'] ?? null;
+
+            return $id !== null ? (string) $id : null;
+        }
+
+        return null;
     }
 }

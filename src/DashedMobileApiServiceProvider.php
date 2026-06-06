@@ -19,6 +19,7 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasRoutes(['api'])
             ->hasMigrations([
+                'create_personal_access_tokens_table',
                 'create_dashed_device_tokens_table',
             ])
             ->runsMigrations();

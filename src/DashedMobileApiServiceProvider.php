@@ -6,8 +6,10 @@ namespace Dashed\DashedMobileApi;
 
 use Spatie\LaravelPackageTools\Package;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Illuminate\Support\Facades\Event;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Dashed\DashedMobileApi\Support\ExpoPushService;
 use Dashed\DashedMobileApi\Http\Middleware\EnsureSiteContext;
 
 class DashedMobileApiServiceProvider extends PackageServiceProvider
@@ -47,5 +49,25 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
             'support-agent' => ['dashboard.read'],
             'read-only' => ['dashboard.read'],
         ]);
+
+        // Push-notificatie bij een nieuwe bestelling (luistert op de classnaam, zodat
+        // er geen harde dependency op dashed-ecommerce-core ontstaat).
+        Event::listen('Dashed\\DashedEcommerceCore\\Events\\Orders\\OrderCreatedEvent', static function ($event): void {
+            $order = $event->order ?? null;
+            if (! $order) {
+                return;
+            }
+            $name = trim((string) (($order->first_name ?? '') . ' ' . ($order->last_name ?? ''))) ?: ($order->email ?? 'Onbekend');
+            $total = number_format((float) ($order->total ?? 0), 2, ',', '.');
+
+            app(\Dashed\DashedMobileApi\Support\NotificationCenter::class)->push()
+                ->title('Nieuwe bestelling')
+                ->body("€ {$total} — {$name}")
+                ->sound('order')
+                ->route("/order/{$order->id}")
+                ->data(['type' => 'order', 'id' => $order->id])
+                ->toAbility('orders.read')
+                ->send();
+        });
     }
 }

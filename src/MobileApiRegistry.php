@@ -18,6 +18,9 @@ class MobileApiRegistry
     /** @var array<int, callable> */
     private array $dashboardContributors = [];
 
+    /** @var array<int, callable> */
+    private array $capabilityContextContributors = [];
+
     public function registerCapability(string $key, array $meta = []): void
     {
         $this->capabilities[$key] = array_merge($this->capabilities[$key] ?? [], $meta);
@@ -43,6 +46,23 @@ class MobileApiRegistry
     public function registerDashboardContributor(callable $contributor): void
     {
         $this->dashboardContributors[] = $contributor;
+    }
+
+    /**
+     * Een contributor die extra context aan de /capabilities-respons toevoegt,
+     * afhankelijk van de ingelogde user en de actieve site. Krijgt (User $user,
+     * string $siteId) en geeft een associatieve array terug die in de respons
+     * wordt samengevoegd (bv. ['chat' => ['is_agent' => true, ...]]).
+     */
+    public function registerCapabilityContextContributor(callable $contributor): void
+    {
+        $this->capabilityContextContributors[] = $contributor;
+    }
+
+    /** @return array<int, callable> */
+    public function capabilityContextContributors(): array
+    {
+        return $this->capabilityContextContributors;
     }
 
     /** @return array<int, array{key: string, version: ?string}> */

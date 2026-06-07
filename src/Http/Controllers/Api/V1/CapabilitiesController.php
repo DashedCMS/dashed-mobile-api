@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Dashed\DashedCore\Classes\Sites;
+use Dashed\DashedCore\Models\Customsetting;
 use Dashed\DashedMobileApi\MobileApiRegistry;
 
 class CapabilitiesController extends Controller
@@ -29,11 +30,31 @@ class CapabilitiesController extends Controller
             ? \Composer\InstalledVersions::getPrettyVersion('dashed/dashed-mobile-api')
             : null;
 
-        return response()->json([
+        // Actieve site (door mobile.site-middleware bepaald) + branding voor de app.
+        $siteId = (string) ($request->attributes->get('mobile_site_id')
+            ?: (Sites::getFirstSite()['id'] ?? ''));
+        $configName = collect(Sites::getSites())->firstWhere('id', $siteId)['name'] ?? $siteId;
+        $siteName = Customsetting::get('site_name', $siteId, $configName);
+        $logoId = Customsetting::get('site_logo', $siteId);
+        $logoUrl = $logoId ? (mediaHelper()->getSingleMedia($logoId)->url ?? null) : null;
+
+        // Module-specifieke context (bv. livechat-medewerkerstatus + rechten),
+        // afhankelijk van de user en de actieve site.
+        $context = [];
+        foreach ($registry->capabilityContextContributors() as $contributor) {
+            $context = array_merge($context, (array) $contributor($user, $siteId));
+        }
+
+        return response()->json(array_merge([
             'capabilities' => $registry->capabilities(),
             'abilities' => $abilities,
             'sites' => $sites,
+            'site' => [
+                'id' => $siteId,
+                'name' => $siteName,
+                'logo_url' => $logoUrl,
+            ],
             'api_version' => $apiVersion,
-        ]);
+        ], $context));
     }
 }

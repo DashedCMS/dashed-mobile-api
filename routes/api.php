@@ -7,6 +7,7 @@ use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AuthController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DeviceController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DashboardController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationPreferenceController;
 
 Route::prefix('api/v1')->group(function (): void {
     Route::post('auth/token', [AuthController::class, 'token'])->middleware('throttle:10,1');
@@ -18,5 +19,10 @@ Route::prefix('api/v1')->group(function (): void {
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');
         Route::post('devices', [DeviceController::class, 'store'])->middleware('ability:devices.write');
+
+        // Per-gebruiker notificatievoorkeuren + zelftest.
+        Route::get('notifications/preferences', [NotificationPreferenceController::class, 'index']);
+        Route::put('notifications/preferences', [NotificationPreferenceController::class, 'update']);
+        Route::post('notifications/test', [NotificationPreferenceController::class, 'test']);
     });
 });

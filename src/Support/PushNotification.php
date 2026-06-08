@@ -44,12 +44,36 @@ class PushNotification
     private array $data = [];
 
     private ?string $ability = null;
+    private ?string $type = null;
+    private ?string $orderOrigin = null;
 
     /** @var array<int, string> */
     private array $tokens = [];
 
     public function __construct(private ExpoPushService $push)
     {
+    }
+
+    /**
+     * Koppel deze melding aan een geregistreerd notificatietype. De ontvanger-
+     * filtering houdt dan rekening met de per-gebruiker voorkeur, en geluid +
+     * recht worden (indien niet expliciet gezet) uit het type overgenomen.
+     */
+    public function type(string $key): self
+    {
+        $this->type = $key;
+
+        $registry = app(\Dashed\DashedMobileApi\MobileApiRegistry::class)->notificationType($key);
+        if ($registry) {
+            if ($this->sound === 'default' && ! empty($registry['sound'])) {
+                $this->sound = (string) $registry['sound'];
+            }
+            if ($this->ability === null && ! empty($registry['ability'])) {
+                $this->ability = (string) $registry['ability'];
+            }
+        }
+
+        return $this;
     }
 
     public function title(string $title): self
@@ -106,6 +130,17 @@ class PushNotification
         return $this;
     }
 
+    /**
+     * Koppel de melding aan een order-origin (own/pos/Bol/…). Ontvangers die
+     * deze origin in hun voorkeuren hebben uitgezet, krijgen 'm dan niet.
+     */
+    public function orderOrigin(?string $origin): self
+    {
+        $this->orderOrigin = $origin;
+
+        return $this;
+    }
+
     public function send(): void
     {
         [$iosSound, $channelId] = self::SOUNDS[$this->sound] ?? self::SOUNDS['default'];
@@ -115,14 +150,34 @@ class PushNotification
             $data['route'] = $this->route;
         }
 
+        // Titel én afbeelding van elke push zijn altijd de sitenaam + het
+        // sitelogo. De meegegeven titel (bv. "Nieuwe bestelling") schuift door
+        // naar de body.
+        $branding = SiteBranding::for();
+
+        // Site-identiteit meesturen zodat de app (bij meerdere ingelogde sites)
+        // bij een tik naar de juiste site kan schakelen. De URL is het meest
+        // betrouwbare anker (komt overeen met de base-URL waarmee is ingelogd).
+        $data['site'] = [
+            'name' => $branding['name'],
+            'url' => rtrim((string) config('app.url'), '/'),
+        ];
+
+        $title = $branding['name'];
+        $heading = trim($this->title);
+        $body = $heading !== ''
+            ? ($this->body !== '' ? "{$heading} — {$this->body}" : $heading)
+            : $this->body;
+        $imageUrl = $branding['logo_url'];
+
         if ($this->ability !== null) {
-            $this->push->notifyAbility($this->ability, $this->title, $this->body, $data, $iosSound, $channelId);
+            $this->push->notifyAbility($this->ability, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin);
 
             return;
         }
 
         if ($this->tokens !== []) {
-            $this->push->sendToTokens($this->tokens, $this->title, $this->body, $data, $iosSound, $channelId);
+            $this->push->sendToTokens($this->tokens, $title, $body, $data, $iosSound, $channelId, $imageUrl);
         }
     }
 }

@@ -18,12 +18,14 @@ class MobileApiRegistry
     /** @var array<int, callable> */
     private array $dashboardContributors = [];
 
+    /** @var array<int, callable> */
+    private array $capabilityContextContributors = [];
+
     /** @var array<string, array<string, mixed>> */
     private array $notificationTypes = [];
 
-
-    /** @var array<int, callable> */
-    private array $capabilityContextContributors = [];
+    /** @var array<string, array<string, mixed>> */
+    private array $orderOrigins = [];
 
     public function registerCapability(string $key, array $meta = []): void
     {
@@ -69,6 +71,61 @@ class MobileApiRegistry
         return $this->capabilityContextContributors;
     }
 
+    /**
+     * Registreer app-notificatietypes waar een gebruiker per stuk voor kan
+     * kiezen of die op zijn telefoon binnenkomen. Elk type:
+     *  key, label, description, group, sound, ability, default (bool).
+     *
+     * @param array<int, array<string, mixed>> $types
+     */
+    public function registerNotificationTypes(array $types): void
+    {
+        foreach ($types as $type) {
+            if (! empty($type['key'])) {
+                $this->notificationTypes[(string) $type['key']] = $type;
+            }
+        }
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function notificationTypes(): array
+    {
+        return $this->notificationTypes;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function notificationType(string $key): ?array
+    {
+        return $this->notificationTypes[$key] ?? null;
+    }
+
+    /**
+     * Registreer bekende order-origins (own/pos/Bol/etsy) waar een gebruiker per
+     * stuk kan kiezen of die order-notificaties geven. Elk: key, label, default.
+     *
+     * @param array<int, array<string, mixed>> $origins
+     */
+    public function registerOrderOrigins(array $origins): void
+    {
+        foreach ($origins as $origin) {
+            if (! empty($origin['key'])) {
+                $this->orderOrigins[(string) $origin['key']] = $origin;
+            }
+        }
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function orderOrigins(): array
+    {
+        return $this->orderOrigins;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function orderOrigin(string $key): ?array
+    {
+        return $this->orderOrigins[$key] ?? null;
+    }
+
     /** @return array<int, array{key: string, version: ?string}> */
     public function capabilities(): array
     {
@@ -96,33 +153,5 @@ class MobileApiRegistry
     public function dashboardContributors(): array
     {
         return $this->dashboardContributors;
-    }
-
-    /**
-     * Registreer app-notificatietypes waar een gebruiker per stuk voor kan
-     * kiezen of die op zijn telefoon binnenkomen. Elk type:
-     *  key, label, description, group, sound, ability, default (bool).
-     *
-     * @param array<int, array<string, mixed>> $types
-     */
-    public function registerNotificationTypes(array $types): void
-    {
-        foreach ($types as $type) {
-            if (! empty($type['key'])) {
-                $this->notificationTypes[(string) $type['key']] = $type;
-            }
-        }
-    }
-
-    /** @return array<string, array<string, mixed>> */
-    public function notificationTypes(): array
-    {
-        return $this->notificationTypes;
-    }
-
-    /** @return array<string, mixed>|null */
-    public function notificationType(string $key): ?array
-    {
-        return $this->notificationTypes[$key] ?? null;
     }
 }

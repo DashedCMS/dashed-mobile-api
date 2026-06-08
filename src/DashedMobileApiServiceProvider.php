@@ -23,6 +23,8 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
             ->hasMigrations([
                 'create_personal_access_tokens_table',
                 'create_dashed_device_tokens_table',
+                'create_user_notification_preferences_table',
+                'create_user_order_origin_preferences_table',
             ])
             ->runsMigrations();
     }
@@ -50,9 +52,11 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
             'read-only' => ['dashboard.read'],
         ]);
 
-        // Push-notificatie bij een nieuwe bestelling (luistert op de classnaam, zodat
-        // er geen harde dependency op dashed-ecommerce-core ontstaat).
-        Event::listen('Dashed\\DashedEcommerceCore\\Events\\Orders\\OrderCreatedEvent', static function ($event): void {
+        // Push-notificaties bij order-events (luisteren op classnaam, zodat er
+        // geen harde dependency op dashed-ecommerce-core ontstaat). Elke push is
+        // aan een type én de order-origin gekoppeld, zodat de per-gebruiker
+        // voorkeuren (type aan/uit + gekozen origins) de ontvangers filteren.
+        $orderPush = static function ($event, string $type, string $heading): void {
             $order = $event->order ?? null;
             if (! $order) {
                 return;
@@ -61,13 +65,23 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
             $total = number_format((float) ($order->total ?? 0), 2, ',', '.');
 
             app(\Dashed\DashedMobileApi\Support\NotificationCenter::class)->push()
-                ->title('Nieuwe bestelling')
+                ->type($type)
+                ->orderOrigin($order->order_origin ?? 'own')
+                ->title($heading)
                 ->body("€ {$total} — {$name}")
-                ->sound('order')
                 ->route("/order/{$order->id}")
                 ->data(['type' => 'order', 'id' => $order->id])
-                ->toAbility('orders.read')
                 ->send();
+        };
+
+        Event::listen('Dashed\\DashedEcommerceCore\\Events\\Orders\\OrderCreatedEvent', static function ($event) use ($orderPush): void {
+            $orderPush($event, 'order.payment_started', 'Betaling gestart');
+        });
+        Event::listen('Dashed\\DashedEcommerceCore\\Events\\Orders\\OrderMarkedAsPaidEvent', static function ($event) use ($orderPush): void {
+            $orderPush($event, 'order.paid', 'Bestelling betaald');
+        });
+        Event::listen('Dashed\\DashedEcommerceCore\\Events\\Orders\\OrderCancelledEvent', static function ($event) use ($orderPush): void {
+            $orderPush($event, 'order.cancelled', 'Bestelling geannuleerd');
         });
     }
 }

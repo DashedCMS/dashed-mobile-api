@@ -8,7 +8,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * Bepaalt het tijdsbereik en de bucket-indeling voor een dashboard-periode.
- * Rolling windows die op "nu" eindigen.
+ * Kalender-huidige periodes: vandaag, deze week, deze maand, dit jaar.
  */
 class DashboardPeriod
 {
@@ -28,10 +28,12 @@ class DashboardPeriod
         $key = in_array($key, self::KEYS, true) ? $key : 'today';
         $now = CarbonImmutable::now();
 
+        // Kalender-huidige periodes: deze week (vanaf maandag), deze maand
+        // (vanaf de 1e), dit jaar (vanaf 1 januari).
         return match ($key) {
-            'week' => new self('week', $now->subDays(6)->startOfDay(), $now, 'day'),
-            'month' => new self('month', $now->subDays(29)->startOfDay(), $now, 'day'),
-            'year' => new self('year', $now->subMonths(11)->startOfMonth(), $now, 'month'),
+            'week' => new self('week', $now->startOfWeek(), $now, 'day'),
+            'month' => new self('month', $now->startOfMonth(), $now, 'day'),
+            'year' => new self('year', $now->startOfYear(), $now, 'month'),
             default => new self('today', $now->startOfDay(), $now, 'hour'),
         };
     }

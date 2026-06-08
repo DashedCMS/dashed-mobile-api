@@ -18,6 +18,10 @@ class MobileApiRegistry
     /** @var array<int, callable> */
     private array $dashboardContributors = [];
 
+    /** @var array<string, array<string, mixed>> */
+    private array $notificationTypes = [];
+
+
     /** @var array<int, callable> */
     private array $capabilityContextContributors = [];
 
@@ -92,5 +96,33 @@ class MobileApiRegistry
     public function dashboardContributors(): array
     {
         return $this->dashboardContributors;
+    }
+
+    /**
+     * Registreer app-notificatietypes waar een gebruiker per stuk voor kan
+     * kiezen of die op zijn telefoon binnenkomen. Elk type:
+     *  key, label, description, group, sound, ability, default (bool).
+     *
+     * @param array<int, array<string, mixed>> $types
+     */
+    public function registerNotificationTypes(array $types): void
+    {
+        foreach ($types as $type) {
+            if (! empty($type['key'])) {
+                $this->notificationTypes[(string) $type['key']] = $type;
+            }
+        }
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function notificationTypes(): array
+    {
+        return $this->notificationTypes;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function notificationType(string $key): ?array
+    {
+        return $this->notificationTypes[$key] ?? null;
     }
 }

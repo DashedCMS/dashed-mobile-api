@@ -27,6 +27,11 @@ class DashboardPeriod
         public readonly ?string $anchor = null,
         public readonly ?string $prevAnchor = null,
         public readonly ?string $nextAnchor = null,
+        // Volledige periode-einde voor de grafiek-buckets. `end` loopt voor de
+        // lopende periode tot "nu" (voor de totalen); de grafiek toont de hele
+        // periode (bv. alle 7 weekdagen), waar toekomstige buckets simpelweg 0
+        // zijn. Zonder dit had "deze week" op dag 1 maar één bucket → geen lijn.
+        public readonly ?CarbonImmutable $bucketEnd = null,
     ) {
     }
 
@@ -92,6 +97,7 @@ class DashboardPeriod
             $start->toDateString(),
             self::prevStart($key, $start)->toDateString(),
             $isCurrent ? null : $nextStart->toDateString(),
+            $periodEnd,
         );
     }
 
@@ -126,8 +132,9 @@ class DashboardPeriod
     {
         $buckets = [];
         $cursor = $this->start;
+        $until = $this->bucketEnd ?? $this->end;
 
-        while ($cursor < $this->end) {
+        while ($cursor < $until) {
             $next = match ($this->granularity) {
                 'hour' => $cursor->addHour(),
                 'month' => $cursor->addMonth(),

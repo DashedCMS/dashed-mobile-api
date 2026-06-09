@@ -27,6 +27,9 @@ class MobileApiRegistry
     /** @var array<string, array<string, mixed>> */
     private array $orderOrigins = [];
 
+    /** @var array<string, array<string, mixed>> Order-acties die de app dynamisch kan tonen/uitvoeren. */
+    private array $orderActions = [];
+
     public function registerCapability(string $key, array $meta = []): void
     {
         $this->capabilities[$key] = array_merge($this->capabilities[$key] ?? [], $meta);
@@ -124,6 +127,35 @@ class MobileApiRegistry
     public function orderOrigin(string $key): ?array
     {
         return $this->orderOrigins[$key] ?? null;
+    }
+
+    /**
+     * Registreer order-acties (zoals op de Filament ViewOrder-pagina) die de app
+     * dynamisch kan tonen en uitvoeren. Elke actie:
+     *  key, label, group, icon, destructive, confirm, fields[], visible(Order),
+     *  handle(Order, array $data).
+     *
+     * @param array<int, array<string, mixed>> $actions
+     */
+    public function registerOrderActions(array $actions): void
+    {
+        foreach ($actions as $action) {
+            if (! empty($action['key'])) {
+                $this->orderActions[(string) $action['key']] = $action;
+            }
+        }
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function orderActions(): array
+    {
+        return $this->orderActions;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function orderAction(string $key): ?array
+    {
+        return $this->orderActions[$key] ?? null;
     }
 
     /** @return array<int, array{key: string, version: ?string}> */

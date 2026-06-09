@@ -15,6 +15,7 @@ Route::prefix('api/v1')->group(function (): void {
 
     Route::middleware(['auth:sanctum', 'mobile.site'])->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout']);
+        Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('me', [AuthController::class, 'me']);
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');

@@ -52,6 +52,10 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
             'read-only' => ['dashboard.read'],
         ]);
 
+        // Telegram-pariteit: alle admin-meldingen die naar Telegram gaan, ook als
+        // instelbare app-notificatietypes registreren (popups, exports, systeem, …).
+        \Dashed\DashedMobileApi\Support\AdminNotificationCatalog::registerTypes($registry);
+
         // Push-notificaties bij order-events (luisteren op classnaam, zodat er
         // geen harde dependency op dashed-ecommerce-core ontstaat). Elke push is
         // aan een type én de order-origin gekoppeld, zodat de per-gebruiker

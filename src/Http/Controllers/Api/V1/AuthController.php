@@ -42,6 +42,33 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Vernieuw het token met de huidige rechten. Sanctum bakt de abilities in
+     * bij het aanmaken; na het toevoegen van een nieuwe ability (pos.use,
+     * forms.read, …) mist een oud token die. De app roept dit bij het opstarten
+     * aan zodat nieuwe rechten meteen gelden zonder opnieuw inloggen.
+     */
+    public function refresh(Request $request, AbilityResolver $resolver): JsonResponse
+    {
+        $user = $request->user();
+        $current = $user->currentAccessToken();
+        $name = $current->name ?? 'app';
+
+        $abilities = $resolver->abilitiesFor($user);
+        $token = $user->createToken($name, $abilities);
+
+        if ($current && method_exists($current, 'delete')) {
+            $current->delete();
+        }
+
+        return response()->json([
+            'token' => $token->plainTextToken,
+            'abilities' => $abilities,
+            'user' => new UserResource($user),
+            'poll_interval_seconds' => (int) config('dashed-mobile-api.poll_interval_seconds', 5),
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();

@@ -2,54 +2,74 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
 return new class () extends Migration {
+    private string $table = 'dashed__user_notification_preferences';
+    private string $newUnique = 'unp_user_type_site_unique';
+
+    private function indexExists(string $index): bool
+    {
+        return DB::table('information_schema.statistics')
+            ->where('table_schema', DB::getDatabaseName())
+            ->where('table_name', $this->table)
+            ->where('index_name', $index)
+            ->exists();
+    }
+
     public function up(): void
     {
-        if (! Schema::hasTable('dashed__user_notification_preferences')) {
+        if (! Schema::hasTable($this->table)) {
             return;
         }
 
-        if (! Schema::hasColumn('dashed__user_notification_preferences', 'site_id')) {
-            Schema::table('dashed__user_notification_preferences', function (Blueprint $table): void {
+        if (! Schema::hasColumn($this->table, 'site_id')) {
+            Schema::table($this->table, function (Blueprint $table): void {
                 $table->string('site_id')->nullable()->after('user_id')->index();
             });
         }
 
-        // Voorkeuren gelden per site: uniek op (user_id, type, site_id).
-        Schema::table('dashed__user_notification_preferences', function (Blueprint $table): void {
-            try {
-                $table->dropUnique(['user_id', 'type']);
-            } catch (\Throwable $e) {
-                // index bestond al niet meer — negeren
-            }
-        });
+        // Oude unique (user_id, type) vervangen door (user_id, type, site_id) met
+        // een korte naam (anders > 64 tekens → MySQL-fout). Idempotent.
+        $oldUnique = $this->table . '_user_id_type_unique';
+        if ($this->indexExists($oldUnique)) {
+            Schema::table($this->table, function (Blueprint $table) use ($oldUnique): void {
+                $table->dropUnique($oldUnique);
+            });
+        }
 
-        Schema::table('dashed__user_notification_preferences', function (Blueprint $table): void {
-            try {
-                $table->unique(['user_id', 'type', 'site_id']);
-            } catch (\Throwable $e) {
-                // unique bestond al — negeren
-            }
-        });
+        if (! $this->indexExists($this->newUnique)) {
+            Schema::table($this->table, function (Blueprint $table): void {
+                $table->unique(['user_id', 'type', 'site_id'], $this->newUnique);
+            });
+        }
     }
 
     public function down(): void
     {
-        if (! Schema::hasTable('dashed__user_notification_preferences')) {
+        if (! Schema::hasTable($this->table)) {
             return;
         }
 
-        Schema::table('dashed__user_notification_preferences', function (Blueprint $table): void {
-            try {
-                $table->dropUnique(['user_id', 'type', 'site_id']);
-            } catch (\Throwable $e) {
-            }
-            $table->unique(['user_id', 'type']);
-            $table->dropColumn('site_id');
-        });
+        if ($this->indexExists($this->newUnique)) {
+            Schema::table($this->table, function (Blueprint $table): void {
+                $table->dropUnique($this->newUnique);
+            });
+        }
+
+        if (! $this->indexExists($this->table . '_user_id_type_unique')) {
+            Schema::table($this->table, function (Blueprint $table): void {
+                $table->unique(['user_id', 'type']);
+            });
+        }
+
+        if (Schema::hasColumn($this->table, 'site_id')) {
+            Schema::table($this->table, function (Blueprint $table): void {
+                $table->dropColumn('site_id');
+            });
+        }
     }
 };

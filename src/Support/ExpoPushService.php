@@ -22,7 +22,7 @@ class ExpoPushService
      *
      * @param array<string, mixed> $data
      */
-    public function notifyAbility(string $ability, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null, ?string $notificationType = null, ?string $orderOrigin = null): void
+    public function notifyAbility(string $ability, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null, ?string $notificationType = null, ?string $orderOrigin = null, ?string $siteId = null): void
     {
         $preferences = $notificationType !== null ? app(NotificationPreferences::class) : null;
         $origins = $orderOrigin !== null ? app(OrderOriginPreferences::class) : null;
@@ -30,7 +30,7 @@ class ExpoPushService
         $tokens = DeviceToken::with('user')->get()
             ->filter(fn (DeviceToken $d): bool => $d->user !== null
                 && in_array($ability, $this->abilities->abilitiesFor($d->user), true)
-                && ($preferences === null || $preferences->wants($d->user, (string) $notificationType))
+                && ($preferences === null || $preferences->wants($d->user, (string) $notificationType, $siteId))
                 && ($origins === null || $origins->wants($d->user, $orderOrigin)))
             ->pluck('token')
             ->all();

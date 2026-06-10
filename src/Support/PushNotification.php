@@ -46,6 +46,7 @@ class PushNotification
     private ?string $ability = null;
     private ?string $type = null;
     private ?string $orderOrigin = null;
+    private ?string $site = null;
 
     /** @var array<int, string> */
     private array $tokens = [];
@@ -141,6 +142,14 @@ class PushNotification
         return $this;
     }
 
+    /** Site waarvoor deze melding geldt (default: de actieve site bij verzenden). */
+    public function site(?string $siteId): self
+    {
+        $this->site = $siteId;
+
+        return $this;
+    }
+
     public function send(): void
     {
         [$iosSound, $channelId] = self::SOUNDS[$this->sound] ?? self::SOUNDS['default'];
@@ -171,7 +180,7 @@ class PushNotification
         $imageUrl = $branding['logo_url'];
 
         if ($this->ability !== null) {
-            $this->push->notifyAbility($this->ability, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin);
+            $this->push->notifyAbility($this->ability, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin, $this->site);
 
             return;
         }

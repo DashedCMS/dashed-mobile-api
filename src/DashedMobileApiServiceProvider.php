@@ -8,9 +8,9 @@ use Spatie\LaravelPackageTools\Package;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Illuminate\Support\Facades\Event;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Dashed\DashedMobileApi\Support\ExpoPushService;
 use Dashed\DashedMobileApi\Http\Middleware\EnsureSiteContext;
+use Dashed\DashedMobileApi\Http\Middleware\EnsureCurrentAbility;
 
 class DashedMobileApiServiceProvider extends PackageServiceProvider
 {
@@ -25,6 +25,7 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 'create_dashed_device_tokens_table',
                 'create_user_notification_preferences_table',
                 'create_user_order_origin_preferences_table',
+                'add_site_id_to_user_notification_preferences_table',
             ])
             ->runsMigrations();
     }
@@ -38,7 +39,9 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
     {
         $router = $this->app['router'];
         $router->aliasMiddleware('mobile.site', EnsureSiteContext::class);
-        $router->aliasMiddleware('ability', CheckForAnyAbility::class);
+        // Autoriseer op de ACTUELE rol-rechten (niet de in het token gebakken
+        // abilities), zodat nieuwe rechten meteen werken zonder re-login/refresh.
+        $router->aliasMiddleware('ability', EnsureCurrentAbility::class);
         $router->aliasMiddleware('abilities', CheckAbilities::class);
 
         /** @var MobileApiRegistry $registry */

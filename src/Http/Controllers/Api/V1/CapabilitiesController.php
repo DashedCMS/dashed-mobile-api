@@ -10,15 +10,17 @@ use Illuminate\Routing\Controller;
 use Dashed\DashedCore\Classes\Sites;
 use Dashed\DashedCore\Models\Customsetting;
 use Dashed\DashedMobileApi\MobileApiRegistry;
+use Dashed\DashedMobileApi\Support\AbilityResolver;
 
 class CapabilitiesController extends Controller
 {
-    public function index(Request $request, MobileApiRegistry $registry): JsonResponse
+    public function index(Request $request, MobileApiRegistry $registry, AbilityResolver $resolver): JsonResponse
     {
         $user = $request->user();
 
-        $allKnownAbilities = array_values(array_unique([...$registry->abilities(), 'devices.write']));
-        $abilities = array_values(array_filter($allKnownAbilities, static fn (string $a): bool => $user->tokenCan($a)));
+        // Op de ACTUELE rol-rechten i.p.v. de in het token gebakken abilities,
+        // zodat nieuwe rechten meteen in het menu verschijnen (geen re-login nodig).
+        $abilities = $resolver->abilitiesFor($user);
 
         $sites = array_map(static fn (array $site): array => [
             'id' => (string) $site['id'],

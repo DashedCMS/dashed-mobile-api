@@ -31,6 +31,15 @@ class AuthController extends Controller
             ]);
         }
 
+        // Alleen back-office gebruikers mogen een beheer-app-token krijgen.
+        // Zelf-geregistreerde webshop-klanten worden geweigerd.
+        if (! (in_array($user->role, ['superadmin', 'admin'], true) || $user->roles->isNotEmpty())) {
+            throw ValidationException::withMessages([
+                // Bewust dezelfde melding als bij foute inloggegevens, om account-enumeratie te voorkomen.
+                'email' => ['De inloggegevens zijn onjuist.'],
+            ]);
+        }
+
         $abilities = $resolver->abilitiesFor($user);
         $token = $user->createToken($data['device_name'], $abilities);
 

@@ -18,9 +18,15 @@ class DeviceController extends Controller
             'token' => ['required', 'string', 'max:512'],
         ]);
 
+        // Voorkom token-hijacking: een push-token hoort bij precies één gebruiker.
+        // Als hetzelfde device nu als een andere gebruiker inlogt, verhuist het token mee.
+        DeviceToken::where('token', $data['token'])
+            ->where('user_id', '!=', $request->user()->id)
+            ->delete();
+
         $device = DeviceToken::updateOrCreate(
-            ['token' => $data['token']],
-            ['user_id' => $request->user()->id, 'platform' => $data['platform']],
+            ['user_id' => $request->user()->id, 'token' => $data['token']],
+            ['platform' => $data['platform']],
         );
 
         return response()->json([

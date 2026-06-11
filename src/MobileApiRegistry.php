@@ -19,6 +19,9 @@ class MobileApiRegistry
     private array $dashboardContributors = [];
 
     /** @var array<int, callable> */
+    private array $copilotContextContributors = [];
+
+    /** @var array<int, callable> */
     private array $capabilityContextContributors = [];
 
     /** @var array<string, array<string, mixed>> */
@@ -185,5 +188,38 @@ class MobileApiRegistry
     public function dashboardContributors(): array
     {
         return $this->dashboardContributors;
+    }
+
+    /**
+     * AI-copilot context: elke bijdrager geeft per site een leesbaar tekstblok
+     * met actuele cijfers/feiten waarop de assistent zijn antwoorden baseert.
+     */
+    public function registerCopilotContext(callable $contributor): void
+    {
+        $this->copilotContextContributors[] = $contributor;
+    }
+
+    /** @return array<int, callable> */
+    public function copilotContextContributors(): array
+    {
+        return $this->copilotContextContributors;
+    }
+
+    /** Bouw de volledige copilot-context voor een site (alle bijdragers samengevoegd). */
+    public function copilotContext(string $siteId): string
+    {
+        $blocks = [];
+        foreach ($this->copilotContextContributors as $contributor) {
+            try {
+                $block = $contributor($siteId);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if (is_string($block) && trim($block) !== '') {
+                $blocks[] = trim($block);
+            }
+        }
+
+        return implode("\n\n", $blocks);
     }
 }

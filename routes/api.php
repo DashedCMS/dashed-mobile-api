@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AuthController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DeviceController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CopilotController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DashboardController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationPreferenceController;
@@ -19,6 +20,7 @@ Route::prefix('api/v1')->group(function (): void {
         Route::get('me', [AuthController::class, 'me']);
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');
+        Route::post('ai/copilot', [CopilotController::class, 'ask'])->middleware('ability:dashboard.read');
         Route::post('devices', [DeviceController::class, 'store'])->middleware('ability:devices.write');
 
         // Per-gebruiker notificatievoorkeuren + zelftest.

@@ -26,6 +26,7 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 'create_user_notification_preferences_table',
                 'create_user_order_origin_preferences_table',
                 'add_site_id_to_user_notification_preferences_table',
+                'create_mobile_notifications_table',
             ])
             ->runsMigrations();
     }

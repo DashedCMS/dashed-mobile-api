@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Dashed\DashedMobileApi\Support;
 
+use Dashed\DashedMobileApi\Support\AbilityResolver;
+use Dashed\DashedMobileApi\Support\NotificationPreferences;
+use Dashed\DashedMobileApi\Support\OrderOriginPreferences;
+
 /**
  * Vloeiende builder om eenvoudig een push-notificatie samen te stellen en te
  * versturen. Vertaalt een logische geluidssleutel naar het juiste iOS-geluids-
@@ -180,13 +184,62 @@ class PushNotification
         $imageUrl = $branding['logo_url'];
 
         if ($this->ability !== null) {
+            // Persisteer één inbox-rij per distinct doel-gebruiker (zelfde
+            // ability- + voorkeur-filter als de push), zodat de app-inbox de
+            // melding kan tonen los van de vluchtige OS-push.
+            $this->persistForAbility($heading !== '' ? $heading : $title, $this->body, $data);
+
             $this->push->notifyAbility($this->ability, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin, $this->site);
 
             return;
         }
 
         if ($this->tokens !== []) {
+            // Pure token-sends hebben geen vaste user→type-relatie (kunnen
+            // anonieme of mixed-user tokens zijn) en worden niet gepersisteerd.
             $this->push->sendToTokens($this->tokens, $title, $body, $data, $iosSound, $channelId, $imageUrl);
+        }
+    }
+
+    /**
+     * Sla per distinct doel-gebruiker (met `user_id`) een inbox-rij op. Mirrort
+     * de filtering uit ExpoPushService::notifyAbility: alleen users die het
+     * recht hebben én — als er een type/origin is gekoppeld — de melding in hun
+     * voorkeuren niet hebben uitgezet. Defensief: een fout hier blokkeert de
+     * push nooit.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function persistForAbility(string $title, string $body, array $data): void
+    {
+        try {
+            $siteId = $this->site ?? (string) \Dashed\DashedCore\Classes\Sites::getActive();
+
+            $abilities = app(AbilityResolver::class);
+            $preferences = $this->type !== null ? app(NotificationPreferences::class) : null;
+            $origins = $this->orderOrigin !== null ? app(OrderOriginPreferences::class) : null;
+
+            $users = \Dashed\DashedMobileApi\Models\DeviceToken::with('user')->get()
+                ->map(fn ($d) => $d->user)
+                ->filter()
+                ->unique('id')
+                ->filter(fn ($user): bool => in_array((string) $this->ability, $abilities->abilitiesFor($user), true)
+                    && ($preferences === null || $preferences->wants($user, (string) $this->type, $siteId))
+                    && ($origins === null || $origins->wants($user, $this->orderOrigin)));
+
+            foreach ($users as $user) {
+                \Dashed\DashedMobileApi\Models\MobileNotification::create([
+                    'user_id' => $user->id,
+                    'site_id' => $siteId,
+                    'type' => (string) ($this->type ?? 'general'),
+                    'title' => $title,
+                    'body' => $body !== '' ? $body : null,
+                    'data' => $data !== [] ? $data : null,
+                    'route' => $this->route,
+                ]);
+            }
+        } catch (\Throwable) {
+            // Persistentie is best-effort; nooit de push laten falen.
         }
     }
 }

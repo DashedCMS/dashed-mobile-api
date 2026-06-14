@@ -9,6 +9,7 @@ use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppVersionController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CopilotController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DashboardController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationInboxController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationPreferenceController;
 
 Route::prefix('api/v1')->group(function (): void {
@@ -29,5 +30,11 @@ Route::prefix('api/v1')->group(function (): void {
         Route::get('notifications/preferences', [NotificationPreferenceController::class, 'index']);
         Route::put('notifications/preferences', [NotificationPreferenceController::class, 'update']);
         Route::post('notifications/test', [NotificationPreferenceController::class, 'test']);
+
+        // Persisted notificatie-inbox (per gebruiker + actieve site).
+        Route::get('notifications/unread-count', [NotificationInboxController::class, 'unreadCount']);
+        Route::get('notifications', [NotificationInboxController::class, 'index']);
+        Route::post('notifications/read-all', [NotificationInboxController::class, 'readAll']);
+        Route::post('notifications/{id}/read', [NotificationInboxController::class, 'read'])->whereNumber('id');
     });
 });

@@ -24,6 +24,9 @@ class MobileApiRegistry
     /** @var array<int, callable> */
     private array $capabilityContextContributors = [];
 
+    /** @var array<int, callable> Globaal-zoeken-providers (orders/producten/klanten/gesprekken). */
+    private array $searchProviders = [];
+
     /** @var array<string, array<string, mixed>> */
     private array $notificationTypes = [];
 
@@ -188,6 +191,27 @@ class MobileApiRegistry
     public function dashboardContributors(): array
     {
         return $this->dashboardContributors;
+    }
+
+    /**
+     * Registreer een provider voor globaal zoeken. Elke provider is
+     * `function (string $siteId, string $query): array` en geeft maximaal 5 items
+     * terug in de vorm:
+     *   ['type' => 'order'|'product'|'customer'|'conversation', 'id' => mixed,
+     *    'title' => string, 'subtitle' => string|null, 'route' => string]
+     * waarbij `route` de app-deeplink is (bv. /order/123, /product/45,
+     * /customer/<email>, /conversation/7). Providers respecteren de actieve site;
+     * de /search-endpoint draait al achter auth.
+     */
+    public function registerSearchProvider(callable $provider): void
+    {
+        $this->searchProviders[] = $provider;
+    }
+
+    /** @return array<int, callable> */
+    public function searchProviders(): array
+    {
+        return $this->searchProviders;
     }
 
     /**

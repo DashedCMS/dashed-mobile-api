@@ -8,6 +8,7 @@ use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DeviceController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppVersionController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CopilotController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DashboardController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\SearchController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationInboxController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationPreferenceController;
@@ -21,6 +22,10 @@ Route::prefix('api/v1')->group(function (): void {
         Route::post('auth/refresh', [AuthController::class, 'refresh']);
         Route::get('me', [AuthController::class, 'me']);
         Route::get('app-version', [AppVersionController::class, 'show']);
+
+        // Globaal zoeken over alle modules. Geen specifieke ability: elke provider
+        // scope't zelf op site (+ eigen recht); de route zit al achter auth.
+        Route::get('search', [SearchController::class, 'index']);
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');
         Route::post('ai/copilot', [CopilotController::class, 'ask'])->middleware('ability:dashboard.read');

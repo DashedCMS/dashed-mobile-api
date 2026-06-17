@@ -51,6 +51,7 @@ class PushNotification
     private ?string $type = null;
     private ?string $orderOrigin = null;
     private ?string $site = null;
+    private ?string $category = null;
 
     /** @var array<int, string> */
     private array $tokens = [];
@@ -154,6 +155,18 @@ class PushNotification
         return $this;
     }
 
+    /**
+     * Koppel een OS-notificatiecategorie (Expo `categoryId`) aan de melding. Die
+     * categorie moet in de app geregistreerd zijn en bepaalt welke actie-knoppen
+     * het OS bij de notificatie toont (bv. 'chat_handoff' → Overnemen / Open chat).
+     */
+    public function category(?string $category): self
+    {
+        $this->category = $category;
+
+        return $this;
+    }
+
     public function send(): void
     {
         [$iosSound, $channelId] = self::SOUNDS[$this->sound] ?? self::SOUNDS['default'];
@@ -189,7 +202,7 @@ class PushNotification
             // melding kan tonen los van de vluchtige OS-push.
             $this->persistForAbility($heading !== '' ? $heading : $title, $this->body, $data);
 
-            $this->push->notifyAbility($this->ability, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin, $this->site);
+            $this->push->notifyAbility($this->ability, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin, $this->site, $this->category);
 
             return;
         }
@@ -197,7 +210,7 @@ class PushNotification
         if ($this->tokens !== []) {
             // Pure token-sends hebben geen vaste user→type-relatie (kunnen
             // anonieme of mixed-user tokens zijn) en worden niet gepersisteerd.
-            $this->push->sendToTokens($this->tokens, $title, $body, $data, $iosSound, $channelId, $imageUrl);
+            $this->push->sendToTokens($this->tokens, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->category);
         }
     }
 

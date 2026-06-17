@@ -22,7 +22,7 @@ class ExpoPushService
      *
      * @param array<string, mixed> $data
      */
-    public function notifyAbility(string $ability, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null, ?string $notificationType = null, ?string $orderOrigin = null, ?string $siteId = null): void
+    public function notifyAbility(string $ability, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null, ?string $notificationType = null, ?string $orderOrigin = null, ?string $siteId = null, ?string $categoryId = null): void
     {
         $preferences = $notificationType !== null ? app(NotificationPreferences::class) : null;
         $origins = $orderOrigin !== null ? app(OrderOriginPreferences::class) : null;
@@ -35,7 +35,7 @@ class ExpoPushService
             ->pluck('token')
             ->all();
 
-        $this->sendToTokens($tokens, $title, $body, $data, $sound, $channelId, $imageUrl);
+        $this->sendToTokens($tokens, $title, $body, $data, $sound, $channelId, $imageUrl, $categoryId);
     }
 
     /**
@@ -44,7 +44,7 @@ class ExpoPushService
      * @param string $sound iOS-geluidsbestand (bv. 'order.wav') of 'default'
      * @param string|null $channelId Android-notificatiekanaal (bepaalt daar het geluid)
      */
-    public function sendToTokens(array $tokens, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null): void
+    public function sendToTokens(array $tokens, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null, ?string $categoryId = null): void
     {
         $valid = array_values(array_filter(
             $tokens,
@@ -55,7 +55,7 @@ class ExpoPushService
             return;
         }
 
-        $messages = array_map(static function (string $token) use ($title, $body, $data, $sound, $channelId, $imageUrl): array {
+        $messages = array_map(static function (string $token) use ($title, $body, $data, $sound, $channelId, $imageUrl, $categoryId): array {
             $message = [
                 'to' => $token,
                 'title' => $title,
@@ -70,6 +70,11 @@ class ExpoPushService
                 // Toont het sitelogo bij de notificatie (Android direct; iOS via
                 // de notification service extension van expo-notifications).
                 $message['richContent'] = ['image' => $imageUrl];
+            }
+            if ($categoryId !== null) {
+                // De OS-notificatiecategorie die de actie-knoppen aanstuurt
+                // (iOS notification category / Android action buttons).
+                $message['categoryId'] = $categoryId;
             }
 
             return $message;

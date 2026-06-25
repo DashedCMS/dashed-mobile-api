@@ -5,10 +5,11 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AuthController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DeviceController;
-use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppVersionController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\SearchController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CopilotController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DashboardController;
-use Dashed\DashedMobileApi\Http\Controllers\Api\V1\SearchController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DailySummaryController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppVersionController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationInboxController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationPreferenceController;
@@ -28,6 +29,8 @@ Route::prefix('api/v1')->group(function (): void {
         Route::get('search', [SearchController::class, 'index']);
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');
+        // Dag-overzicht: alle summary-secties voor één dag (default gisteren).
+        Route::get('daily-summary', [DailySummaryController::class, 'show'])->middleware('ability:dashboard.read');
         Route::post('ai/copilot', [CopilotController::class, 'ask'])->middleware('ability:dashboard.read');
         Route::post('devices', [DeviceController::class, 'store'])->middleware('ability:devices.write');
 

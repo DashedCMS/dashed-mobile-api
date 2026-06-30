@@ -98,17 +98,21 @@ class AdminNotificationCatalog
 
         $key = $entry[0];
 
-        // Korte body uit de samenvatting: titel + de eerste paar veldwaarden.
+        // Korte body uit de samenvatting: de eerste paar veldwaarden. Sla velden
+        // over die gelijk zijn aan de titel — PushNotification zet er al
+        // "{titel} — {body}" voor, anders staat de naam er dubbel in
+        // (bv. popup "Welkom" => "Welkom — Welkom · e-mail").
         $details = [];
+        $titleNorm = trim((string) $summary->title);
         foreach ($summary->fields as $value) {
-            if (is_string($value) && trim($value) !== '' && trim($value) !== '-') {
+            if (is_string($value) && trim($value) !== '' && trim($value) !== '-' && trim($value) !== $titleNorm) {
                 $details[] = trim($value);
             }
             if (count($details) >= 2) {
                 break;
             }
         }
-        $body = $details ? implode(' · ', $details) : $summary->title;
+        $body = $details ? implode(' · ', $details) : $titleNorm;
 
         app(NotificationCenter::class)->push()
             ->type($key)

@@ -36,6 +36,9 @@ class MobileApiRegistry
     /** @var array<string, array<string, mixed>> Order-acties die de app dynamisch kan tonen/uitvoeren. */
     private array $orderActions = [];
 
+    /** @var array<string, array<string, mixed>> Triggers voor automatiseringsregels ("als dit gebeurt en deze voorwaarden gelden, doe dat"). */
+    private array $automationTriggers = [];
+
     public function registerCapability(string $key, array $meta = []): void
     {
         $this->capabilities[$key] = array_merge($this->capabilities[$key] ?? [], $meta);
@@ -162,6 +165,34 @@ class MobileApiRegistry
     public function orderAction(string $key): ?array
     {
         return $this->orderActions[$key] ?? null;
+    }
+
+    /**
+     * Registreer triggers voor automatiseringsregels ("als dit gebeurt en deze
+     * voorwaarden gelden, doe dat"). Elke trigger:
+     *  key, label, subject, event (class-string), fields[], resolve(callable).
+     *
+     * @param array<int, array<string, mixed>> $triggers
+     */
+    public function registerAutomationTriggers(array $triggers): void
+    {
+        foreach ($triggers as $trigger) {
+            if (! empty($trigger['key'])) {
+                $this->automationTriggers[(string) $trigger['key']] = $trigger;
+            }
+        }
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function automationTriggers(): array
+    {
+        return $this->automationTriggers;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function automationTrigger(string $key): ?array
+    {
+        return $this->automationTriggers[$key] ?? null;
     }
 
     /** @return array<int, array{key: string, version: ?string}> */

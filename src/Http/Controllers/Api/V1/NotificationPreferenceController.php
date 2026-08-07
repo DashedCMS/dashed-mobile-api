@@ -88,8 +88,8 @@ class NotificationPreferenceController extends Controller
         }
 
         app(NotificationCenter::class)->push()
-            ->title('Testnotificatie')
-            ->body('Push-notificaties werken op dit toestel. 🎉')
+            ->title(__('Testnotificatie'))
+            ->body(__('Push-notificaties werken op dit toestel. 🎉'))
             ->sound('default')
             ->route('/settings')
             ->toTokens($tokens)

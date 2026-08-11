@@ -82,6 +82,43 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 ->send();
         };
 
+        // Nieuwsbriefmeldingen. Zelfde vorm als de order-pushes: luisteren op
+        // classnaam, zodat er geen harde dependency op dashed-newsletter komt.
+        // De twee schakelaars op een lijst bepalen of er iets uitgaat; die stonden
+        // er al in het scherm maar deden tot nu toe niets.
+        if (method_exists($registry, 'registerNotificationTypes')) {
+            $registry->registerNotificationTypes([
+                ['key' => 'newsletter.subscribed', 'label' => 'Nieuwe aanmelding', 'description' => 'Iemand heeft zich aangemeld voor een nieuwsbrieflijst.', 'group' => 'Nieuwsbrief', 'sound' => 'default', 'ability' => 'dashboard.read', 'default' => false],
+                ['key' => 'newsletter.unsubscribed', 'label' => 'Afmelding', 'description' => 'Iemand heeft zich afgemeld voor een nieuwsbrieflijst.', 'group' => 'Nieuwsbrief', 'sound' => 'default', 'ability' => 'dashboard.read', 'default' => false],
+            ]);
+        }
+
+        $newsletterPush = static function ($event, string $type, string $heading, string $toggle): void {
+            $subscriber = $event->subscriber ?? null;
+            $list = $subscriber?->list;
+
+            // Geen lijst of de schakelaar staat uit: dan hoort er niets uit te
+            // gaan. Bij een drukke lijst is elke aanmelding anders een melding.
+            if (! $subscriber || ! $list || ! $list->{$toggle}) {
+                return;
+            }
+
+            app(\Dashed\DashedMobileApi\Support\NotificationCenter::class)->push()
+                ->type($type)
+                ->title($heading)
+                ->body($subscriber->email . ' — ' . $list->name)
+                ->route("/newsletter/subscriber/{$subscriber->id}")
+                ->data(['type' => 'newsletter_subscriber', 'id' => $subscriber->id, 'list_id' => $list->id])
+                ->send();
+        };
+
+        Event::listen('Dashed\\DashedNewsletter\\Events\\NewsletterSubscribedEvent', static function ($event) use ($newsletterPush): void {
+            $newsletterPush($event, 'newsletter.subscribed', 'Nieuwe aanmelding', 'notify_on_subscribe');
+        });
+        Event::listen('Dashed\\DashedNewsletter\\Events\\NewsletterUnsubscribedEvent', static function ($event) use ($newsletterPush): void {
+            $newsletterPush($event, 'newsletter.unsubscribed', 'Afmelding', 'notify_on_unsubscribe');
+        });
+
         Event::listen('Dashed\\DashedEcommerceCore\\Events\\Orders\\OrderCreatedEvent', static function ($event) use ($orderPush): void {
             $orderPush($event, 'order.payment_started', 'Betaling gestart');
         });

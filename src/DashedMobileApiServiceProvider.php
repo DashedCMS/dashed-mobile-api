@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Dashed\DashedMobileApi;
 
+use Illuminate\Support\Facades\Event;
 use Spatie\LaravelPackageTools\Package;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
-use Illuminate\Support\Facades\Event;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Dashed\DashedMobileApi\Support\ExpoPushService;
 use Dashed\DashedMobileApi\Http\Middleware\EnsureSiteContext;
 use Dashed\DashedMobileApi\Http\Middleware\EnsureCurrentAbility;
 
@@ -26,6 +25,7 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 'create_user_notification_preferences_table',
                 'create_user_order_origin_preferences_table',
                 'add_site_id_to_user_notification_preferences_table',
+                'ensure_site_id_on_user_notification_preferences_table',
                 'create_mobile_notifications_table',
             ])
             ->runsMigrations();

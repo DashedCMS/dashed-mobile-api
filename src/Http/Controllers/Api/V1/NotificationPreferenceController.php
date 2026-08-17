@@ -10,8 +10,8 @@ use Illuminate\Routing\Controller;
 use Dashed\DashedMobileApi\MobileApiRegistry;
 use Dashed\DashedMobileApi\Models\DeviceToken;
 use Dashed\DashedMobileApi\Support\NotificationCenter;
-use Dashed\DashedMobileApi\Support\NotificationPreferences;
 use Dashed\DashedMobileApi\Support\OrderOriginPreferences;
+use Dashed\DashedMobileApi\Support\NotificationPreferences;
 
 class NotificationPreferenceController extends Controller
 {

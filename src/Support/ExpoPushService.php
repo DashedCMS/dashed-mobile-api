@@ -6,8 +6,6 @@ namespace Dashed\DashedMobileApi\Support;
 
 use Illuminate\Support\Facades\Http;
 use Dashed\DashedMobileApi\Models\DeviceToken;
-use Dashed\DashedMobileApi\Support\NotificationPreferences;
-use Dashed\DashedMobileApi\Support\OrderOriginPreferences;
 
 class ExpoPushService
 {

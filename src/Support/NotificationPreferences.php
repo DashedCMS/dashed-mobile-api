@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Dashed\DashedMobileApi\Support;
 
-use Dashed\DashedCore\Classes\Sites;
 use Dashed\DashedCore\Models\User;
+use Dashed\DashedCore\Classes\Sites;
 use Dashed\DashedMobileApi\MobileApiRegistry;
 use Dashed\DashedMobileApi\Models\UserNotificationPreference;
 

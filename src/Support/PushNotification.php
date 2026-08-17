@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Dashed\DashedMobileApi\Support;
 
-use Dashed\DashedMobileApi\Support\AbilityResolver;
-use Dashed\DashedMobileApi\Support\NotificationPreferences;
-use Dashed\DashedMobileApi\Support\OrderOriginPreferences;
-
 /**
  * Vloeiende builder om eenvoudig een push-notificatie samen te stellen en te
  * versturen. Vertaalt een logische geluidssleutel naar het juiste iOS-geluids-

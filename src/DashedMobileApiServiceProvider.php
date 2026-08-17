@@ -112,6 +112,51 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 ->send();
         };
 
+        // Sitescan. Zelfde vorm: luisteren op classnaam, dus geen harde
+        // dependency op dashed-seo. De frequentie staat per site in het CMS, of
+        // de melding aankomt bepaalt de gebruiker in de app.
+        if (method_exists($registry, 'registerNotificationTypes')) {
+            $registry->registerNotificationTypes([
+                // Standaard aan: een scan die je zelf hebt ingepland hoort ook
+                // vanzelf iets van zich te laten horen. Uitzetten kan per
+                // gebruiker in de app.
+                ['key' => 'seo.audit_completed', 'label' => 'Sitescan afgerond', 'description' => 'Een technische sitescan is klaar, met de score en wat er gevonden is.', 'group' => 'SEO', 'sound' => 'default', 'ability' => 'dashboard.read', 'default' => true],
+            ]);
+        }
+
+        Event::listen('Dashed\\DashedSeo\\Events\\SiteAuditCompleted', static function ($event): void {
+            $audit = $event->audit ?? null;
+
+            if (! $audit) {
+                return;
+            }
+
+            $score = $audit->health_score;
+            $previous = method_exists($audit, 'previous') ? $audit->previous() : null;
+            $delta = ($previous && $previous->health_score !== null && $score !== null)
+                ? (int) $score - (int) $previous->health_score
+                : null;
+
+            // Het verschil met de vorige scan is het hele punt van een
+            // periodieke melding: een score van 82 zegt weinig, 82 na 91 wel.
+            $verschil = $delta === null ? '' : sprintf(' (%s%d)', $delta >= 0 ? '+' : '', $delta);
+
+            app(\Dashed\DashedMobileApi\Support\NotificationCenter::class)->push()
+                ->type('seo.audit_completed')
+                ->title(__('Sitescan afgerond'))
+                ->body(__('Score :score:verschil — :fouten fouten, :waarschuwingen waarschuwingen op :paginas pagina\'s.', [
+                    'score' => $score ?? '-',
+                    'verschil' => $verschil,
+                    'fouten' => (int) $audit->error_count,
+                    'waarschuwingen' => (int) $audit->warning_count,
+                    'paginas' => (int) $audit->pages_crawled,
+                ]))
+                ->site($audit->site_id)
+                ->route('/notifications')
+                ->data(['type' => 'site_audit', 'id' => $audit->id])
+                ->send();
+        });
+
         Event::listen('Dashed\\DashedNewsletter\\Events\\NewsletterSubscribedEvent', static function ($event) use ($newsletterPush): void {
             $newsletterPush($event, 'newsletter.subscribed', 'Nieuwe aanmelding', 'notify_on_subscribe');
         });

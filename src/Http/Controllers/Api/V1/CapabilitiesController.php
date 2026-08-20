@@ -40,6 +40,14 @@ class CapabilitiesController extends Controller
         $logoId = Customsetting::get('site_logo', $siteId);
         $logoUrl = $logoId ? (mediaHelper()->getSingleMedia($logoId)->url ?? null) : null;
 
+        // Merkkleur per shop (dezelfde die de shop voor e-mails gebruikt), zodat de
+        // app zijn accent op de huisstijl van de website afstemt. Alleen doorgeven
+        // als het een geldige hex is; anders valt de app terug op zijn eigen accent.
+        $brandColor = Customsetting::get('mail_primary_color', $siteId);
+        $accentColor = is_string($brandColor) && preg_match('/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $brandColor)
+            ? $brandColor
+            : null;
+
         // Module-specifieke context (bv. livechat-medewerkerstatus + rechten),
         // afhankelijk van de user en de actieve site.
         $context = [];
@@ -56,6 +64,7 @@ class CapabilitiesController extends Controller
                 'name' => $siteName,
                 'logo_url' => $logoUrl,
             ],
+            'accent_color' => $accentColor,
             'api_version' => $apiVersion,
         ], $context));
     }

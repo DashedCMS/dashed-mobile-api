@@ -178,9 +178,10 @@ class PushNotification
         $branding = SiteBranding::for();
 
         // Site-identiteit meesturen zodat de app (bij meerdere ingelogde sites)
-        // bij een tik naar de juiste site kan schakelen. De URL is het meest
-        // betrouwbare anker (komt overeen met de base-URL waarmee is ingelogd).
+        // bij een tik naar de juiste site kan schakelen. De site-id is het
+        // autoritatieve anker; naam + URL blijven als fallback voor oudere apps.
         $data['site'] = [
+            'id' => $this->site ?? (string) \Dashed\DashedCore\Classes\Sites::getActive(),
             'name' => $branding['name'],
             'url' => rtrim((string) config('app.url'), '/'),
         ];

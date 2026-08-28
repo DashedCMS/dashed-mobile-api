@@ -7,6 +7,7 @@ use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AuthController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DeviceController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\SearchController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CopilotController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AssistantController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DashboardController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppVersionController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
@@ -32,6 +33,9 @@ Route::prefix('api/v1')->group(function (): void {
         // Dag-overzicht: alle summary-secties voor één dag (default gisteren).
         Route::get('daily-summary', [DailySummaryController::class, 'show'])->middleware('ability:dashboard.read');
         Route::post('ai/copilot', [CopilotController::class, 'ask'])->middleware('ability:dashboard.read');
+        // "Vraag de app": korte AI-antwoorden op basis van het dagoverzicht + order-lookup.
+        Route::get('assistant/available', [AssistantController::class, 'available'])->middleware('ability:dashboard.read');
+        Route::post('assistant/ask', [AssistantController::class, 'ask'])->middleware('ability:dashboard.read');
         Route::post('devices', [DeviceController::class, 'store'])->middleware('ability:devices.write');
 
         // Per-gebruiker notificatievoorkeuren + zelftest.

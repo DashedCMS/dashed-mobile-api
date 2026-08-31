@@ -33,7 +33,7 @@ Route::prefix('api/v1')->group(function (): void {
         // App-pagina's van modules zonder eigen app-schermen; ability-check per
         // pagina in de controller (dynamisch uit de registry-meta).
         Route::get('app-pages', [AppPageController::class, 'index']);
-        Route::post('app-pages/{key}/open', [AppPageController::class, 'open']);
+        Route::post('app-pages/{key}/open', [AppPageController::class, 'open'])->middleware('throttle:30,1');
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');
         // Dag-overzicht: alle summary-secties voor één dag (default gisteren).

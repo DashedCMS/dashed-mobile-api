@@ -209,7 +209,10 @@ class MobileApiRegistry
      */
     public function registerAppPage(string $key, array $meta): void
     {
-        $this->appPages[$key] = $meta;
+        $this->appPages[$key] = array_merge($this->appPages[$key] ?? [], $meta);
+        // De ability moet bij de AbilityResolver bekend zijn, anders is de
+        // pagina voor niemand zichtbaar (ook admins niet) — automatisch aanmelden.
+        $this->registerAbilities([(string) ($meta['ability'] ?? 'dashboard.read')]);
     }
 
     /** @return array<string, array<string, mixed>> */

@@ -34,6 +34,11 @@ ge-discovered.
   `thisSite()`-scopes site-correct zijn. Cross-site toegang levert 404.
 - **Abilities** — Sanctum `ability`/`abilities` middleware-aliassen.
 - **Devices** — `POST /api/v1/devices` registreert een FCM device-token per gebruiker.
+- **App-pagina's** — modules registreren met `MobileApiRegistry::registerAppPage()` een
+  pagina in het app-menu; `GET /api/v1/app-pages` levert de lijst (gefilterd op ability),
+  `POST /api/v1/app-pages/{key}/open` geeft een éénmalige magic-link (60 s, MFA-guard,
+  host-check) die de web-sessie inlogt en doorstuurt naar de admin-pagina. Zie
+  `docs/mobile-app/module-app-paginas.md` in de repo-root voor de gids.
 
 ## Conventies
 

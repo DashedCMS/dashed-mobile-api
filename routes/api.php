@@ -10,6 +10,7 @@ use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CopilotController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AssistantController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DashboardController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppVersionController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppPageController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DailySummaryController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationInboxController;
@@ -28,6 +29,11 @@ Route::prefix('api/v1')->group(function (): void {
         // Globaal zoeken over alle modules. Geen specifieke ability: elke provider
         // scope't zelf op site (+ eigen recht); de route zit al achter auth.
         Route::get('search', [SearchController::class, 'index']);
+
+        // App-pagina's van modules zonder eigen app-schermen; ability-check per
+        // pagina in de controller (dynamisch uit de registry-meta).
+        Route::get('app-pages', [AppPageController::class, 'index']);
+        Route::post('app-pages/{key}/open', [AppPageController::class, 'open']);
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');
         // Dag-overzicht: alle summary-secties voor één dag (default gisteren).

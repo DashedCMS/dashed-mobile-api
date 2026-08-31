@@ -39,6 +39,9 @@ class MobileApiRegistry
     /** @var array<string, array<string, mixed>> Triggers voor automatiseringsregels ("als dit gebeurt en deze voorwaarden gelden, doe dat"). */
     private array $automationTriggers = [];
 
+    /** @var array<string, array<string, mixed>> App-pagina's van modules zonder eigen app-schermen. */
+    private array $appPages = [];
+
     public function registerCapability(string $key, array $meta = []): void
     {
         $this->capabilities[$key] = array_merge($this->capabilities[$key] ?? [], $meta);
@@ -193,6 +196,32 @@ class MobileApiRegistry
     public function automationTrigger(string $key): ?array
     {
         return $this->automationTriggers[$key] ?? null;
+    }
+
+    /**
+     * Registreer een app-pagina voor een module zonder eigen app-schermen. De
+     * app toont 'm in het menu en opent 'm via een éénmalige magic-link. Meta:
+     *  title (string), icon (Ionicons-naam), group (default 'Modules'),
+     *  ability (default 'dashboard.read'; een eigen ability ook via
+     *  registerAbilities aanmelden), url (closure → absolute admin-URL).
+     *
+     * @param array<string, mixed> $meta
+     */
+    public function registerAppPage(string $key, array $meta): void
+    {
+        $this->appPages[$key] = $meta;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function appPages(): array
+    {
+        return $this->appPages;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function appPage(string $key): ?array
+    {
+        return $this->appPages[$key] ?? null;
     }
 
     /** @return array<int, array{key: string, version: ?string}> */

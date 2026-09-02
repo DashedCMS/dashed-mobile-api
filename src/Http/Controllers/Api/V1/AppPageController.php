@@ -66,9 +66,10 @@ class AppPageController extends Controller
         }
 
         // De magic-link logt een volwaardige CMS-sessie in en zou daarmee de
-        // tweestapsverificatie van het paneel omzeilen. Bij verplichte MFA of
-        // een gebruiker met MFA ingesteld geven we daarom geen link uit.
-        if ($this->mfaApplies($user)) {
+        // tweestapsverificatie van het paneel omzeilen. Een app-sessie die bij
+        // het inloggen al een tweede factor bewees (ability mfa.passed) mag
+        // wél; anders geven we bij (verplichte of ingestelde) MFA geen link uit.
+        if ($this->mfaApplies($user) && ! $request->user()->tokenCan('mfa.passed')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Dit account gebruikt tweestapsverificatie; log in het CMS zelf in om deze module te openen.',

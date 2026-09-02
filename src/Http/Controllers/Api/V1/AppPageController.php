@@ -67,12 +67,14 @@ class AppPageController extends Controller
 
         // De magic-link logt een volwaardige CMS-sessie in en zou daarmee de
         // tweestapsverificatie van het paneel omzeilen. Een app-sessie die bij
-        // het inloggen al een tweede factor bewees (ability mfa.passed) mag
-        // wél; anders geven we bij (verplichte of ingestelde) MFA geen link uit.
-        if ($this->mfaApplies($user) && ! $request->user()->tokenCan('mfa.passed')) {
+        // het inloggen een tweede factor bewees (mfa.passed) mag wél, zolang
+        // die verificatie nog vers is volgens dezelfde termijn als het paneel
+        // (MfaFreshness); anders geven we bij MFA geen link uit.
+        $mfaPassed = $this->tokenMfaIsFresh($request);
+        if ($this->mfaApplies($user) && ! $mfaPassed) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dit account gebruikt tweestapsverificatie; log in het CMS zelf in om deze module te openen.',
+                'message' => 'Dit account gebruikt tweestapsverificatie; log opnieuw in (met code) in de app of open het CMS in de browser.',
             ], 422);
         }
 
@@ -83,6 +85,9 @@ class AppPageController extends Controller
             // Site-context vastleggen: de web-route heeft geen X-Site-Id, dus
             // zonder dit zou de module-URL op de verkeerde site kunnen uitkomen.
             'site_id' => (string) Sites::getActive(),
+            // Zodat de web-route de MFA-versheid van het paneel kan stempelen —
+            // anders stuurt EnsureMfaIsFresh de sessie alsnog naar een 2FA-scherm.
+            'mfa_passed' => $mfaPassed,
         ], self::TOKEN_TTL_SECONDS);
 
         return response()->json(['url' => url('/mobile-app-page/' . $token)]);
@@ -127,7 +132,43 @@ class AppPageController extends Controller
 
         Auth::guard('web')->login($user);
 
+        // MFA-versheid van het paneel stempelen wanneer de app-sessie de tweede
+        // factor bewees: zonder stempel zou EnsureMfaIsFresh de net ingelogde
+        // sessie direct naar het 2FA-herverificatiescherm sturen.
+        if (! empty($payload['mfa_passed']) && class_exists(\Dashed\DashedCore\Classes\MfaFreshness::class)) {
+            \Dashed\DashedCore\Classes\MfaFreshness::stamp();
+        }
+
         return redirect()->away($url);
+    }
+
+    /**
+     * Heeft dit token een 2FA-verificatie die nog vers is volgens de
+     * paneel-termijn (mfa_reverify_hours; 0 = verloopt nooit)?
+     */
+    private function tokenMfaIsFresh(Request $request): bool
+    {
+        $token = $request->user()->currentAccessToken();
+        if (! $token || ! $token->can('mfa.passed')) {
+            return false;
+        }
+
+        $hours = class_exists(\Dashed\DashedCore\Classes\MfaFreshness::class)
+            ? \Dashed\DashedCore\Classes\MfaFreshness::hours()
+            : 0;
+        if ($hours <= 0) {
+            return true;
+        }
+
+        foreach (($token->abilities ?? []) as $ability) {
+            if (str_starts_with((string) $ability, 'mfa.at:')) {
+                $at = (int) substr((string) $ability, strlen('mfa.at:'));
+
+                return $at >= now()->subHours($hours)->timestamp;
+            }
+        }
+
+        return false;
     }
 
     /** @param array<string, mixed> $meta */
@@ -136,14 +177,18 @@ class AppPageController extends Controller
         return (string) ($meta['ability'] ?? 'dashboard.read');
     }
 
-    /** Geldt er (verplichte of ingestelde) tweestapsverificatie voor deze gebruiker? */
+    /**
+     * Geldt er (verplichte of ingestelde) tweestapsverificatie voor deze
+     * gebruiker? Zelfde bronnen als het paneel: providers kunnen daar per site
+     * uitgezet zijn, en mfaIsRequired() is o.a. uit in local-omgevingen.
+     */
     private function mfaApplies(User $user): bool
     {
-        // Let op: $default is null|string|array (strict) — geen bool meegeven.
-        if (Customsetting::get('force_mfa')) {
+        if (method_exists(cms(), 'mfaIsRequired') && cms()->mfaIsRequired()) {
             return true;
         }
 
-        return filled($user->app_authentication_secret) || (bool) ($user->has_email_authentication ?? false);
+        return class_exists(\Dashed\DashedCore\Classes\MfaFreshness::class)
+            && \Dashed\DashedCore\Classes\MfaFreshness::enabledProviders($user) !== [];
     }
 }

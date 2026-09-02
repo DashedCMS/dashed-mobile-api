@@ -19,7 +19,14 @@ class AbilityResolver
      */
     public function abilitiesFor(User $user): array
     {
-        $known = array_values(array_unique([...$this->registry->abilities(), 'devices.write']));
+        // De mfa.*-namespace is gereserveerd voor de 2FA-status op het token
+        // (mfa.passed / mfa.at:<ts>) en mag NOOIT via de rechten-resolver
+        // uitgedeeld worden — ook niet als een package 'm per ongeluk
+        // registreert (admins krijgen anders de hele known-lijst).
+        $known = array_values(array_unique(array_filter(
+            [...$this->registry->abilities(), 'devices.write'],
+            fn (string $ability): bool => ! str_starts_with($ability, 'mfa.'),
+        )));
 
         if (in_array($user->role, ['superadmin', 'admin'], true)) {
             return $known;

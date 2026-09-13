@@ -45,6 +45,8 @@ Route::prefix('api/v1')->group(function (): void {
         // "Vraag de app": korte AI-antwoorden op basis van het dagoverzicht + order-lookup.
         Route::get('assistant/available', [AssistantController::class, 'available'])->middleware('ability:dashboard.read');
         Route::post('assistant/ask', [AssistantController::class, 'ask'])->middleware('ability:dashboard.read');
+        // AI-tekst oppoetsen (formulier-/chat-/notitie-antwoord).
+        Route::post('ai/improve-text', [AssistantController::class, 'improveText'])->middleware('ability:dashboard.read');
         Route::post('devices', [DeviceController::class, 'store'])->middleware('ability:devices.write');
 
         // Per-gebruiker notificatievoorkeuren + zelftest.

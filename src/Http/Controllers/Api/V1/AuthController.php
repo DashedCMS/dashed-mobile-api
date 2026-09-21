@@ -15,8 +15,8 @@ use Dashed\DashedCore\Classes\MfaFreshness;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Dashed\DashedMobileApi\Support\AbilityResolver;
-use Dashed\DashedMobileApi\Http\Resources\UserResource;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
+use Dashed\DashedMobileApi\Http\Resources\UserResource;
 use Filament\Auth\MultiFactor\Email\EmailAuthentication;
 
 class AuthController extends Controller

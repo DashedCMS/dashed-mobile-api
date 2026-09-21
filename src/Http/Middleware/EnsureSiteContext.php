@@ -13,6 +13,15 @@ class EnsureSiteContext
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Een afnemerssleutel zit in dezelfde tokentabel. EnsureCurrentAbility
+        // kijkt naar de rol en niet naar het token, en een paar routes vragen
+        // geen ability, dus de grens moet hier. class_exists omdat dit pakket
+        // tegen een oudere dashed-core kan draaien.
+        if (class_exists(\Dashed\DashedCore\Classes\ApiTokenAbilities::class)
+            && \Dashed\DashedCore\Classes\ApiTokenAbilities::isReseller($request->user()?->currentAccessToken())) {
+            return response()->json(['message' => 'Deze sleutel is voor de afnemers-API en geeft geen toegang tot de app.'], 403);
+        }
+
         $sites = Sites::getSites();
         $validIds = array_map(
             static fn (array $site): string => (string) $site['id'],

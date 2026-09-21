@@ -13,7 +13,6 @@ use Dashed\DashedCore\Classes\Sites;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
-use Dashed\DashedCore\Models\Customsetting;
 use Dashed\DashedMobileApi\MobileApiRegistry;
 use Dashed\DashedMobileApi\Support\AbilityResolver;
 

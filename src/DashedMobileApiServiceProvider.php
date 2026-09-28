@@ -157,6 +157,41 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 ->send();
         });
 
+        // Offertes. Zelfde vorm: luisteren op klassenaam, dus geen harde
+        // dependency op dashed-ecommerce-core. De app heeft (nog) geen
+        // offertescherm, dus de melding opent de meldingenlijst.
+        if (method_exists($registry, 'registerNotificationTypes')) {
+            $registry->registerNotificationTypes([
+                ['key' => 'quote.answered', 'label' => 'Offerte beantwoord', 'description' => 'Een klant heeft een offerte geaccepteerd of afgewezen.', 'group' => 'Offertes', 'sound' => 'default', 'ability' => 'orders.read', 'default' => true],
+            ]);
+        }
+
+        $quotePush = static function ($event, string $heading): void {
+            $quote = $event->quote ?? null;
+
+            if (! $quote) {
+                return;
+            }
+
+            $klant = collect([$quote->company_name, trim(($quote->first_name ?? '').' '.($quote->last_name ?? ''))])->filter()->implode(', ') ?: ($quote->email ?? '');
+            $total = number_format((float) ($quote->total ?? 0), 2, ',', '.');
+
+            // Binnen rescue(): dit event is synchroon vanuit QuoteAcceptance, dus
+            // een netwerkfout bij Expo mag het akkoord/de afwijzing en de
+            // klantmail (volgende listener) niet omzetten in een 500.
+            rescue(fn () => app(\Dashed\DashedMobileApi\Support\NotificationCenter::class)->push()
+                ->type('quote.answered')
+                ->title($heading)
+                ->body($quote->displayNumber()." · € {$total} · {$klant}")
+                ->site($quote->site_id)
+                ->route('/notifications')
+                ->data(['type' => 'quote', 'id' => $quote->id])
+                ->send());
+        };
+
+        Event::listen('Dashed\\DashedEcommerceCore\\Events\\Quotes\\QuoteAccepted', static fn ($event) => $quotePush($event, __('Offerte geaccepteerd')));
+        Event::listen('Dashed\\DashedEcommerceCore\\Events\\Quotes\\QuoteRejected', static fn ($event) => $quotePush($event, __('Offerte afgewezen')));
+
         Event::listen('Dashed\\DashedNewsletter\\Events\\NewsletterSubscribedEvent', static function ($event) use ($newsletterPush): void {
             $newsletterPush($event, 'newsletter.subscribed', 'Nieuwe aanmelding', 'notify_on_subscribe');
         });

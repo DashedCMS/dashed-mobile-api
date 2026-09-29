@@ -48,6 +48,7 @@ Route::prefix('api/v1')->group(function (): void {
         // AI-tekst oppoetsen (formulier-/chat-/notitie-antwoord).
         Route::post('ai/improve-text', [AssistantController::class, 'improveText'])->middleware('ability:dashboard.read');
         Route::post('devices', [DeviceController::class, 'store'])->middleware('ability:devices.write');
+        Route::delete('devices', [DeviceController::class, 'destroy'])->middleware('ability:devices.write');
 
         // Per-gebruiker notificatievoorkeuren + zelftest.
         Route::get('notifications/preferences', [NotificationPreferenceController::class, 'index']);

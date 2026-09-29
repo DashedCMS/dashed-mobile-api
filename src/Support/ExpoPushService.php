@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Dashed\DashedMobileApi\Support;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Dashed\DashedMobileApi\Models\DeviceToken;
 
@@ -25,15 +26,41 @@ class ExpoPushService
         $preferences = $notificationType !== null ? app(NotificationPreferences::class) : null;
         $origins = $orderOrigin !== null ? app(OrderOriginPreferences::class) : null;
 
-        $tokens = DeviceToken::with('user')->get()
+        $candidates = DeviceToken::with('user')->get()
             ->filter(fn (DeviceToken $d): bool => $d->user !== null
                 && in_array($ability, $this->abilities->abilitiesFor($d->user), true)
                 && ($preferences === null || $preferences->wants($d->user, (string) $notificationType, $siteId))
-                && ($origins === null || $origins->wants($d->user, $orderOrigin)))
-            ->pluck('token')
-            ->all();
+                && ($origins === null || $origins->wants($d->user, $orderOrigin)));
+
+        $tokens = $this->activeTokens($candidates);
 
         $this->sendToTokens($tokens, $title, $body, $data, $sound, $channelId, $imageUrl, $categoryId);
+    }
+
+    /**
+     * Filtert device-tokens waarvan de registrerende Sanctum-sessie is
+     * ingetrokken (uitgelogd): rijen met een access_token_id dat niet meer in
+     * personal_access_tokens bestaat, vallen af. Rijen zonder koppeling
+     * (access_token_id NULL, legacy) blijven werken tot ze opnieuw registreren.
+     *
+     * @param \Illuminate\Support\Collection<int, DeviceToken> $candidates
+     * @return array<int, string>
+     */
+    private function activeTokens($candidates): array
+    {
+        $sessionIds = $candidates->pluck('access_token_id')->filter()->map(fn ($id): int => (int) $id)->unique()->values();
+
+        $live = [];
+        if ($sessionIds->isNotEmpty()) {
+            foreach (DB::table('personal_access_tokens')->whereIn('id', $sessionIds->all())->pluck('id') as $id) {
+                $live[(int) $id] = true;
+            }
+        }
+
+        return $candidates
+            ->filter(fn (DeviceToken $d): bool => $d->access_token_id === null || isset($live[(int) $d->access_token_id]))
+            ->pluck('token')
+            ->all();
     }
 
     /**

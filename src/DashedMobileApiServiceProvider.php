@@ -22,6 +22,8 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
             ->hasMigrations([
                 'create_personal_access_tokens_table',
                 'create_dashed_device_tokens_table',
+                'dashed_device_tokens_add_access_token_id',
+                'dashed_device_tokens_prune_sessionless',
                 'create_user_notification_preferences_table',
                 'create_user_order_origin_preferences_table',
                 'add_site_id_to_user_notification_preferences_table',

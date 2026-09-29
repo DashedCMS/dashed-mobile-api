@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use Dashed\DashedCore\Classes\MfaFreshness;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
+use Dashed\DashedMobileApi\Models\DeviceToken;
 use Dashed\DashedMobileApi\Support\AbilityResolver;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Dashed\DashedMobileApi\Http\Resources\UserResource;
@@ -235,7 +236,18 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        // Ruim het push-token van déze sessie op, zodat een uitgelogd toestel
+        // geen meldingen meer krijgt. Alleen de rij van de huidige sessie —
+        // een ander account/sessie op hetzelfde toestel blijft ongemoeid.
+        $token = $request->user()->currentAccessToken();
+        if ($token) {
+            if (method_exists($token, 'getKey')) {
+                DeviceToken::where('user_id', $request->user()->id)
+                    ->where('access_token_id', (int) $token->getKey())
+                    ->delete();
+            }
+            $token->delete();
+        }
 
         return response()->json(['message' => 'Uitgelogd.']);
     }

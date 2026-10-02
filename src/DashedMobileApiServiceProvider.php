@@ -17,6 +17,7 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
     {
         $package
             ->name('dashed-mobile-api')
+            ->hasTranslations()
             ->hasConfigFile()
             ->hasRoutes(['api', 'web'])
             ->hasMigrations([

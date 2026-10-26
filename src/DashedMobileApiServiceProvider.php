@@ -195,6 +195,28 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
         Event::listen('Dashed\\DashedEcommerceCore\\Events\\Quotes\\QuoteAccepted', static fn ($event) => $quotePush($event, __('Offerte geaccepteerd')));
         Event::listen('Dashed\\DashedEcommerceCore\\Events\\Quotes\\QuoteRejected', static fn ($event) => $quotePush($event, __('Offerte afgewezen')));
 
+        // Herinneringen en taken uit dashed-core. Altijd naar de toestellen van
+        // die ene ontvanger, los van meldingsvoorkeuren: hij heeft hem zelf
+        // ingepland of een collega heeft hem een taak gegeven. Op klassenaam,
+        // zodat een oudere dashed-core zonder dit event gewoon werkt.
+        Event::listen('Dashed\\DashedCore\\Events\\ReminderDue', static function ($event): void {
+            $reminder = $event->reminder ?? null;
+            $tokens = $reminder ? \Dashed\DashedMobileApi\Models\DeviceToken::where('user_id', $reminder->user_id)->pluck('token')->all() : [];
+
+            if ($tokens === []) {
+                return;
+            }
+
+            rescue(fn () => app(\Dashed\DashedMobileApi\Support\NotificationCenter::class)->push()
+                ->title(__('Herinnering: :label', ['label' => $reminder->label]))
+                ->body((string) ($reminder->note ?: __('Open Mijn taken in het CMS.')))
+                ->sound('default')
+                ->route('/notifications')
+                ->data(['type' => 'reminder', 'id' => $reminder->id])
+                ->toTokens($tokens)
+                ->send());
+        });
+
         Event::listen('Dashed\\DashedNewsletter\\Events\\NewsletterSubscribedEvent', static function ($event) use ($newsletterPush): void {
             $newsletterPush($event, 'newsletter.subscribed', 'Nieuwe aanmelding', 'notify_on_subscribe');
         });

@@ -6,6 +6,7 @@ namespace Dashed\DashedMobileApi\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Dashed\DashedCore\Models\User;
 use Dashed\DashedCore\Classes\Sites;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -20,6 +21,13 @@ class EnsureSiteContext
         if (class_exists(\Dashed\DashedCore\Classes\ApiTokenAbilities::class)
             && \Dashed\DashedCore\Classes\ApiTokenAbilities::isReseller($request->user()?->currentAccessToken())) {
             return response()->json(['message' => 'Deze sleutel is voor de afnemers-API en geeft geen toegang tot de app.'], 403);
+        }
+
+        // Sanctum accepteert elk tokenable model, ook een Printer (HasApiTokens,
+        // voor de print-queue-daemon). Die routes hangen aan ensure.printer en
+        // niet aan deze middleware; hier mag alleen een gebruiker binnen.
+        if ($request->user() !== null && ! $request->user() instanceof User) {
+            return response()->json(['message' => 'Deze sleutel geeft geen toegang tot de app.'], 403);
         }
 
         $sites = Sites::getSites();

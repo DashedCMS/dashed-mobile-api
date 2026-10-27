@@ -29,8 +29,9 @@ Route::prefix('api/v1')->group(function (): void {
         Route::get('me', [AuthController::class, 'me']);
         Route::get('app-version', [AppVersionController::class, 'show']);
 
-        // Globaal zoeken over alle modules. Geen specifieke ability: elke provider
-        // scope't zelf op site (+ eigen recht); de route zit al achter auth.
+        // Globaal zoeken over alle modules. Geen ability op de route zelf: de
+        // controller filtert per provider en per resultaattype op de rechten van
+        // de gebruiker (SearchAccess), want de providers komen uit andere pakketten.
         Route::get('search', [SearchController::class, 'index']);
 
         // App-pagina's van modules zonder eigen app-schermen; ability-check per

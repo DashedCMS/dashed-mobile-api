@@ -24,7 +24,7 @@ class MobileApiRegistry
     /** @var array<int, callable> */
     private array $capabilityContextContributors = [];
 
-    /** @var array<int, callable> Globaal-zoeken-providers (orders/producten/klanten/gesprekken). */
+    /** @var array<int, array{provider: callable, ability: string|null}> Globaal-zoeken-providers (orders/producten/klanten/gesprekken). */
     private array $searchProviders = [];
 
     /** @var array<string, array<string, mixed>> */
@@ -263,16 +263,26 @@ class MobileApiRegistry
      *   ['type' => 'order'|'product'|'customer'|'conversation', 'id' => mixed,
      *    'title' => string, 'subtitle' => string|null, 'route' => string]
      * waarbij `route` de app-deeplink is (bv. /order/123, /product/45,
-     * /customer/<email>, /conversation/7). Providers respecteren de actieve site;
-     * de /search-endpoint draait al achter auth.
+     * /customer/<email>, /conversation/7). Providers respecteren de actieve site.
+     *
+     * Rechten: met `$ability` wordt de provider alleen aangeroepen voor een
+     * gebruiker met dat recht. Zonder `$ability` filtert de /search-endpoint elk
+     * item op zijn `type` (zie SearchAccess::TYPE_ABILITIES); een onbekend type
+     * vraagt dan `dashboard.read`.
      */
-    public function registerSearchProvider(callable $provider): void
+    public function registerSearchProvider(callable $provider, ?string $ability = null): void
     {
-        $this->searchProviders[] = $provider;
+        $this->searchProviders[] = ['provider' => $provider, 'ability' => $ability];
     }
 
     /** @return array<int, callable> */
     public function searchProviders(): array
+    {
+        return array_column($this->searchProviders, 'provider');
+    }
+
+    /** @return array<int, array{provider: callable, ability: string|null}> */
+    public function searchProviderEntries(): array
     {
         return $this->searchProviders;
     }

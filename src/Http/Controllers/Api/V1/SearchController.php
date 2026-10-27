@@ -9,6 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Dashed\DashedCore\Classes\Sites;
 use Dashed\DashedMobileApi\MobileApiRegistry;
+use Dashed\DashedMobileApi\Support\SearchAccess;
+use Dashed\DashedMobileApi\Support\AbilityResolver;
 
 /**
  * Globaal zoeken: aggregeert resultaten van alle geregistreerde search-providers
@@ -22,7 +24,7 @@ class SearchController extends Controller
     /** Minimale lengte van de zoekterm voordat we providers aanroepen. */
     private const MIN_LENGTH = 2;
 
-    public function index(Request $request, MobileApiRegistry $registry): JsonResponse
+    public function index(Request $request, MobileApiRegistry $registry, AbilityResolver $resolver): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
 
@@ -31,9 +33,18 @@ class SearchController extends Controller
         }
 
         $site = (string) Sites::getActive();
+        $access = new SearchAccess($request->user(), $site, $resolver);
         $results = [];
 
-        foreach ($registry->searchProviders() as $provider) {
+        foreach ($registry->searchProviderEntries() as $entry) {
+            $provider = $entry['provider'];
+            $ability = $entry['ability'];
+
+            // Met een eigen ability roepen we de provider niet eens aan.
+            if ($ability !== null && ! $access->has($ability)) {
+                continue;
+            }
+
             try {
                 $items = $provider($site, $query);
             } catch (\Throwable $e) {
@@ -48,6 +59,11 @@ class SearchController extends Controller
 
             foreach (array_slice(array_values($items), 0, 5) as $item) {
                 if (! is_array($item) || empty($item['type']) || empty($item['route'])) {
+                    continue;
+                }
+
+                // Zonder eigen ability beslist het type van het item.
+                if ($ability === null && ! $access->allowsType((string) $item['type'])) {
                     continue;
                 }
 

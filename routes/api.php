@@ -15,6 +15,7 @@ use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DailySummaryController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationInboxController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationPreferenceController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\QuietHoursController;
 
 Route::prefix('api/v1')->group(function (): void {
     Route::post('auth/token', [AuthController::class, 'token'])->middleware('throttle:10,1');
@@ -55,6 +56,10 @@ Route::prefix('api/v1')->group(function (): void {
         Route::get('notifications/preferences', [NotificationPreferenceController::class, 'index']);
         Route::put('notifications/preferences', [NotificationPreferenceController::class, 'update']);
         Route::post('notifications/test', [NotificationPreferenceController::class, 'test']);
+
+        // Stille uren: tijdvenster waarin geen automatische push binnenkomt.
+        Route::get('notifications/quiet-hours', [QuietHoursController::class, 'index']);
+        Route::put('notifications/quiet-hours', [QuietHoursController::class, 'update']);
 
         // Persisted notificatie-inbox (per gebruiker + actieve site).
         Route::get('notifications/unread-count', [NotificationInboxController::class, 'unreadCount']);

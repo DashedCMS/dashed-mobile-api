@@ -25,12 +25,17 @@ class ExpoPushService
     {
         $preferences = $notificationType !== null ? app(NotificationPreferences::class) : null;
         $origins = $orderOrigin !== null ? app(OrderOriginPreferences::class) : null;
+        // Stille uren: tijdens het ingestelde venster krijgt de gebruiker geen
+        // automatische push. Een zelf-aangevraagde testnotificatie gaat via
+        // sendToTokens() en wordt hier dus bewust niet gefilterd.
+        $quietHours = app(QuietHours::class);
 
         $candidates = DeviceToken::with('user')->get()
             ->filter(fn (DeviceToken $d): bool => $d->user !== null
                 && in_array($ability, $this->abilities->abilitiesFor($d->user), true)
                 && ($preferences === null || $preferences->wants($d->user, (string) $notificationType, $siteId))
-                && ($origins === null || $origins->wants($d->user, $orderOrigin)));
+                && ($origins === null || $origins->wants($d->user, $orderOrigin))
+                && ! $quietHours->isQuiet($d->user));
 
         $tokens = $this->activeTokens($candidates);
 

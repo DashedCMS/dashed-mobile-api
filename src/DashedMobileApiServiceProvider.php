@@ -30,6 +30,7 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 'add_site_id_to_user_notification_preferences_table',
                 'ensure_site_id_on_user_notification_preferences_table',
                 'create_mobile_notifications_table',
+                'create_user_quiet_hours_table',
             ])
             ->runsMigrations();
     }

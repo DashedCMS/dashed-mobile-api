@@ -10,6 +10,7 @@ use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 use Dashed\DashedMobileApi\Http\Middleware\EnsureSiteContext;
 use Dashed\DashedMobileApi\Http\Middleware\EnsureCurrentAbility;
+use Dashed\DashedMobileApi\Commands\DispatchDigestPushCommand;
 
 class DashedMobileApiServiceProvider extends PackageServiceProvider
 {
@@ -31,6 +32,7 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
                 'ensure_site_id_on_user_notification_preferences_table',
                 'create_mobile_notifications_table',
             ])
+            ->hasCommands([DispatchDigestPushCommand::class])
             ->runsMigrations();
     }
 
@@ -62,6 +64,40 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
         // Telegram-pariteit: alle admin-meldingen die naar Telegram gaan, ook als
         // instelbare app-notificatietypes registreren (popups, exports, systeem, …).
         \Dashed\DashedMobileApi\Support\AdminNotificationCatalog::registerTypes($registry);
+
+        // Dagelijkse digest-push (standaard uit: opt-in per gebruiker). De toggle
+        // verschijnt vanzelf op het notificatiescherm; de push wordt verstuurd
+        // door DispatchDigestPushCommand en gefilterd op recht + stille uren.
+        if (method_exists($registry, 'registerNotificationTypes')) {
+            $registry->registerNotificationTypes([
+                ['key' => 'digest.daily', 'label' => 'Dagoverzicht', 'description' => 'Een dagelijkse samenvatting van je shop als push.', 'group' => 'Dagoverzicht', 'sound' => 'default', 'ability' => 'dashboard.read', 'default' => false],
+            ]);
+        }
+
+        // Plan de dagelijkse digest-push. Alleen in console registreren (de
+        // scheduler draait via `schedule:run`), zodat web-requests geen extra
+        // boot-werk of DB-query krijgen. Het uur volgt de samenvatting-mail
+        // (summary_dispatch_hour, default 9), met veilige terugval.
+        $this->app->booted(function (): void {
+            if (! $this->app->runningInConsole()) {
+                return;
+            }
+
+            $hour = 9;
+            try {
+                $configured = (int) \Dashed\DashedCore\Models\Customsetting::get('summary_dispatch_hour', null, 9);
+                if ($configured >= 0 && $configured <= 23) {
+                    $hour = $configured;
+                }
+            } catch (\Throwable) {
+                // Val terug op 9 als de settings-tabel (nog) niet klaar is.
+            }
+
+            app(\Illuminate\Console\Scheduling\Schedule::class)
+                ->command(DispatchDigestPushCommand::class)
+                ->dailyAt(sprintf('%02d:05', $hour))
+                ->withoutOverlapping();
+        });
 
         // Push-notificaties bij order-events (luisteren op classnaam, zodat er
         // geen harde dependency op dashed-ecommerce-core ontstaat). Elke push is

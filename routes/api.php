@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AuthController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DeviceController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\SearchController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\LinkSearchController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppPageController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CopilotController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AssistantController;
@@ -34,6 +35,10 @@ Route::prefix('api/v1')->group(function (): void {
         // controller filtert per provider en per resultaattype op de rechten van
         // de gebruiker (SearchAccess), want de providers komen uit andere pakketten.
         Route::get('search', [SearchController::class, 'index']);
+
+        // Deelbare links zoeken (producten/categorieën/pagina's) met publieke URL,
+        // om in de livechat snel een linkje op te zoeken en te versturen.
+        Route::get('link-search', [LinkSearchController::class, 'index']);
 
         // App-pagina's van modules zonder eigen app-schermen; ability-check per
         // pagina in de controller (dynamisch uit de registry-meta).

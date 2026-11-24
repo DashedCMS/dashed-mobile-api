@@ -21,4 +21,14 @@ return [
         'force_update' => false,
         'message' => null,
     ],
+
+    // EAS Update-webhook: EAS roept dit endpoint aan zodra een OTA gepubliceerd
+    // is, waarna we alle toestellen een "nieuwe versie"-push sturen. De secret
+    // moet gelijk zijn aan het secret dat bij `eas webhook:create` is ingesteld;
+    // zonder secret doet het endpoint niets. 'branch' beperkt tot updates op die
+    // branch (leeg = elke branch).
+    'eas_webhook' => [
+        'secret' => env('EAS_WEBHOOK_SECRET'),
+        'branch' => env('EAS_WEBHOOK_BRANCH', 'production'),
+    ],
 ];

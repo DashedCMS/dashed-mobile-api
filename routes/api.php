@@ -15,6 +15,7 @@ use Dashed\DashedMobileApi\Http\Controllers\Api\V1\AppVersionController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\CapabilitiesController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\DailySummaryController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationInboxController;
+use Dashed\DashedMobileApi\Http\Controllers\Api\V1\EasUpdateWebhookController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\NotificationPreferenceController;
 use Dashed\DashedMobileApi\Http\Controllers\Api\V1\QuietHoursController;
 
@@ -23,6 +24,11 @@ Route::prefix('api/v1')->group(function (): void {
     // 2FA-stap van het inloggen: code verifiëren / e-mailcode opnieuw sturen.
     Route::post('auth/token/mfa', [AuthController::class, 'tokenMfa'])->middleware('throttle:10,1');
     Route::post('auth/token/mfa/resend', [AuthController::class, 'tokenMfaResend'])->middleware('throttle:5,1');
+
+    // EAS Update-webhook: stuurt na een OTA-publish een "nieuwe versie"-push naar
+    // alle toestellen. Onbeveiligd door Sanctum; geverifieerd via de HMAC-
+    // handtekening in de controller.
+    Route::post('webhooks/eas-update', [EasUpdateWebhookController::class, 'handle'])->middleware('throttle:60,1');
     Route::get('capabilities', [CapabilitiesController::class, 'index'])->middleware(['auth:sanctum', 'mobile.site']);
 
     Route::middleware(['auth:sanctum', 'mobile.site'])->group(function (): void {

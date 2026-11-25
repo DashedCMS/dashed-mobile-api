@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Dashed\DashedCore\Models\User;
 use Dashed\DashedCore\Classes\Sites;
+use Dashed\DashedMobileApi\Support\WidgetToken;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureSiteContext
@@ -21,6 +22,11 @@ class EnsureSiteContext
         if (class_exists(\Dashed\DashedCore\Classes\ApiTokenAbilities::class)
             && \Dashed\DashedCore\Classes\ApiTokenAbilities::isReseller($request->user()?->currentAccessToken())) {
             return response()->json(['message' => 'Deze sleutel is voor de afnemers-API en geeft geen toegang tot de app.'], 403);
+        }
+
+        // Widget token: read-only, only the endpoints the home-screen widget calls.
+        if (WidgetToken::isWidget($request->user()?->currentAccessToken()) && ! WidgetToken::allows($request)) {
+            return response()->json(['message' => 'Dit widget-token geeft alleen toegang tot het dashboard.'], 403);
         }
 
         // Sanctum accepteert elk tokenable model, ook een Printer (HasApiTokens,

@@ -15,6 +15,7 @@ use Dashed\DashedCore\Classes\MfaFreshness;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Dashed\DashedMobileApi\Models\DeviceToken;
+use Dashed\DashedMobileApi\Support\WidgetToken;
 use Dashed\DashedMobileApi\Support\AbilityResolver;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Dashed\DashedMobileApi\Http\Resources\UserResource;
@@ -223,6 +224,11 @@ class AuthController extends Controller
         $token = $user->createToken($name, $abilities);
 
         if ($current && method_exists($current, 'delete')) {
+            // The widget token of the old session goes with it; the app asks
+            // for a new one for the refreshed session.
+            if (method_exists($current, 'getKey')) {
+                WidgetToken::revokeFor($user, (int) $current->getKey());
+            }
             $current->delete();
         }
 
@@ -245,11 +251,27 @@ class AuthController extends Controller
                 DeviceToken::where('user_id', $request->user()->id)
                     ->where('access_token_id', (int) $token->getKey())
                     ->delete();
+                WidgetToken::revokeFor($request->user(), (int) $token->getKey());
             }
             $token->delete();
         }
 
         return response()->json(['message' => 'Uitgelogd.']);
+    }
+
+    /**
+     * Read-only token for the iOS home-screen widget, bound to the current app
+     * session: it expires on its own and is revoked with that session (logout,
+     * refresh). See WidgetToken for what it can reach.
+     */
+    public function widgetToken(Request $request): JsonResponse
+    {
+        $current = $request->user()->currentAccessToken();
+        if ($current === null || ! method_exists($current, 'getKey') || WidgetToken::isWidget($current)) {
+            abort(403, 'Alleen een app-sessie kan een widget-token aanvragen.');
+        }
+
+        return response()->json(WidgetToken::issue($request->user(), (int) $current->getKey()));
     }
 
     public function me(Request $request): UserResource

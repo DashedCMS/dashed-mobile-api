@@ -34,6 +34,8 @@ Route::prefix('api/v1')->group(function (): void {
     Route::middleware(['auth:sanctum', 'mobile.site'])->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/refresh', [AuthController::class, 'refresh']);
+        // Read-only token for the iOS home-screen widget (dashboard + visitors only).
+        Route::post('auth/widget-token', [AuthController::class, 'widgetToken'])->middleware(['ability:dashboard.read', 'throttle:10,1']);
         Route::get('me', [AuthController::class, 'me']);
         Route::get('app-version', [AppVersionController::class, 'show']);
 

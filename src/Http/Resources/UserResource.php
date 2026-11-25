@@ -20,7 +20,11 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            // 'role' blijft voor oudere app-builds (accessor: superadmin/admin/
+            // customer); nieuwe builds lezen is_superadmin en access.
             'role' => $this->role,
+            'is_superadmin' => $this->isSuperadmin(),
+            'access' => $this->accessLabel(),
             'roles' => $this->roles->pluck('name')->values(),
             'abilities' => $token ? array_values($token->abilities ?? []) : [],
         ];

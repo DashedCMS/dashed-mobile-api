@@ -52,6 +52,12 @@ class PushNotification
     /** @var array<int, string> */
     private array $tokens = [];
 
+    /** @var array<int, int>|null Expliciete ontvangers (toUsers()), anders null. */
+    private ?array $userIds = null;
+
+    /** Of het recht met toAbility() is gezet (en dus niet alleen uit het type kwam). */
+    private bool $abilityExplicit = false;
+
     public function __construct(private ExpoPushService $push)
     {
     }
@@ -120,6 +126,33 @@ class PushNotification
     public function toAbility(string $ability): self
     {
         $this->ability = $ability;
+        $this->abilityExplicit = true;
+
+        return $this;
+    }
+
+    /**
+     * Verstuur naar de devices van precies deze gebruikers (User-modellen of
+     * id's), bijvoorbeeld de medewerkers die ChatAccess voor een site toelaat.
+     * Anders dan toTokens() gelden hier wél de voorkeur per type, de
+     * order-origin, stille uren en het filter op uitgelogde sessies, en komt de
+     * melding in de inbox van elke ontvanger. Het recht uit type() telt hier
+     * niet als filter (de aanroeper koos de ontvangers al); een expliciete
+     * toAbility() wel.
+     *
+     * @param iterable<int, \Dashed\DashedCore\Models\User|int|string> $users
+     */
+    public function toUsers(iterable $users): self
+    {
+        $ids = [];
+        foreach ($users as $user) {
+            $id = is_object($user) ? $user->getKey() : $user;
+            if ($id !== null && $id !== '') {
+                $ids[(int) $id] = (int) $id;
+            }
+        }
+
+        $this->userIds = array_values($ids);
 
         return $this;
     }
@@ -193,11 +226,20 @@ class PushNotification
             : $this->body;
         $imageUrl = $branding['logo_url'];
 
+        if ($this->userIds !== null) {
+            $ability = $this->abilityExplicit ? $this->ability : null;
+            $this->persistFor($this->userIds, $ability, $heading !== '' ? $heading : $title, $this->body, $data);
+
+            $this->push->notifyUsers($this->userIds, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin, $this->site, $this->category, $ability);
+
+            return;
+        }
+
         if ($this->ability !== null) {
             // Persisteer één inbox-rij per distinct doel-gebruiker (zelfde
             // ability- + voorkeur-filter als de push), zodat de app-inbox de
             // melding kan tonen los van de vluchtige OS-push.
-            $this->persistForAbility($heading !== '' ? $heading : $title, $this->body, $data);
+            $this->persistFor(null, $this->ability, $heading !== '' ? $heading : $title, $this->body, $data);
 
             $this->push->notifyAbility($this->ability, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->type, $this->orderOrigin, $this->site, $this->category);
 
@@ -213,14 +255,16 @@ class PushNotification
 
     /**
      * Sla per distinct doel-gebruiker (met `user_id`) een inbox-rij op. Mirrort
-     * de filtering uit ExpoPushService::notifyAbility: alleen users die het
+     * de filtering uit ExpoPushService::notifyAbility/notifyUsers: alleen de
+     * gekozen users (bij toUsers()), alleen users die het
      * recht hebben én — als er een type/origin is gekoppeld — de melding in hun
      * voorkeuren niet hebben uitgezet. Defensief: een fout hier blokkeert de
      * push nooit.
      *
+     * @param array<int, int>|null $userIds
      * @param array<string, mixed> $data
      */
-    private function persistForAbility(string $title, string $body, array $data): void
+    private function persistFor(?array $userIds, ?string $ability, string $title, string $body, array $data): void
     {
         try {
             $siteId = $this->site ?? (string) \Dashed\DashedCore\Classes\Sites::getActive();
@@ -229,11 +273,13 @@ class PushNotification
             $preferences = $this->type !== null ? app(NotificationPreferences::class) : null;
             $origins = $this->orderOrigin !== null ? app(OrderOriginPreferences::class) : null;
 
-            $users = \Dashed\DashedMobileApi\Models\DeviceToken::with('user')->get()
+            $users = \Dashed\DashedMobileApi\Models\DeviceToken::with('user')
+                ->when($userIds !== null, fn ($query) => $query->whereIn('user_id', $userIds))
+                ->get()
                 ->map(fn ($d) => $d->user)
                 ->filter()
                 ->unique('id')
-                ->filter(fn ($user): bool => in_array((string) $this->ability, $abilities->abilitiesFor($user), true)
+                ->filter(fn ($user): bool => ($ability === null || in_array($ability, $abilities->abilitiesFor($user), true))
                     && ($preferences === null || $preferences->wants($user, (string) $this->type, $siteId))
                     && ($origins === null || $origins->wants($user, $this->orderOrigin)));
 

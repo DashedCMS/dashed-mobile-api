@@ -23,6 +23,33 @@ class ExpoPushService
      */
     public function notifyAbility(string $ability, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null, ?string $notificationType = null, ?string $orderOrigin = null, ?string $siteId = null, ?string $categoryId = null): void
     {
+        $this->notify(DeviceToken::with('user')->get(), $ability, $title, $body, $data, $sound, $channelId, $imageUrl, $notificationType, $orderOrigin, $siteId, $categoryId);
+    }
+
+    /**
+     * Stuur een push naar de devices van precies deze gebruikers (id's), met
+     * dezelfde filters als notifyAbility(): voorkeur per type, order-origin,
+     * stille uren en ingetrokken sessies. Met $ability valt daarbovenop af wie
+     * dat app-recht niet heeft.
+     *
+     * @param array<int, int> $userIds
+     * @param array<string, mixed> $data
+     */
+    public function notifyUsers(array $userIds, string $title, string $body, array $data = [], string $sound = 'default', ?string $channelId = null, ?string $imageUrl = null, ?string $notificationType = null, ?string $orderOrigin = null, ?string $siteId = null, ?string $categoryId = null, ?string $ability = null): void
+    {
+        if ($userIds === []) {
+            return;
+        }
+
+        $this->notify(DeviceToken::with('user')->whereIn('user_id', $userIds)->get(), $ability, $title, $body, $data, $sound, $channelId, $imageUrl, $notificationType, $orderOrigin, $siteId, $categoryId);
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, DeviceToken> $devices
+     * @param array<string, mixed> $data
+     */
+    private function notify($devices, ?string $ability, string $title, string $body, array $data, string $sound, ?string $channelId, ?string $imageUrl, ?string $notificationType, ?string $orderOrigin, ?string $siteId, ?string $categoryId): void
+    {
         $preferences = $notificationType !== null ? app(NotificationPreferences::class) : null;
         $origins = $orderOrigin !== null ? app(OrderOriginPreferences::class) : null;
         // Stille uren: tijdens het ingestelde venster krijgt de gebruiker geen
@@ -30,9 +57,9 @@ class ExpoPushService
         // sendToTokens() en wordt hier dus bewust niet gefilterd.
         $quietHours = app(QuietHours::class);
 
-        $candidates = DeviceToken::with('user')->get()
+        $candidates = $devices
             ->filter(fn (DeviceToken $d): bool => $d->user !== null
-                && in_array($ability, $this->abilities->abilitiesFor($d->user), true)
+                && ($ability === null || in_array($ability, $this->abilities->abilitiesFor($d->user), true))
                 && ($preferences === null || $preferences->wants($d->user, (string) $notificationType, $siteId))
                 && ($origins === null || $origins->wants($d->user, $orderOrigin))
                 && ! $quietHours->isQuiet($d->user));

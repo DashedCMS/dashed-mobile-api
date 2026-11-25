@@ -35,7 +35,8 @@ class CopilotController extends Controller
         }
 
         $site = (string) Sites::getActive();
-        $context = $registry->copilotContext($site);
+        // Alleen de contextblokken waar de gebruiker in het CMS recht op heeft.
+        $context = $registry->copilotContext($site, $request->user());
         $siteName = SiteBranding::for()['name'] ?? 'de webshop';
 
         $system = "Je bent de AI Ops-Copilot in het beheerpaneel van webshop \"{$siteName}\"."

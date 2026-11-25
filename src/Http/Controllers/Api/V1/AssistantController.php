@@ -8,7 +8,9 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
+use Dashed\DashedCore\Models\User;
 use Dashed\DashedCore\Services\Summary\DailySummaryBuilder;
+use Dashed\DashedMobileApi\Support\SummaryAccess;
 
 /**
  * "Vraag de app": AI-assistent voor natuurlijke-taalvragen in het beheerpaneel.
@@ -98,7 +100,7 @@ PROMPT;
         }
 
         $question = $data['question'];
-        $context = $this->buildContext($question);
+        $context = $this->buildContext($question, $request->user());
 
         $response = (self::AI)::json($this->buildPrompt($context, $question));
 
@@ -116,13 +118,15 @@ PROMPT;
     /**
      * @return array<string, mixed>
      */
-    private function buildContext(string $question): array
+    private function buildContext(string $question, User $user): array
     {
+        // Zelfde grenzen als het CMS: alleen de dagoverzicht-secties waar de
+        // gebruiker recht op heeft, en een order opzoeken alleen met view_order.
         $context = [
-            'vandaag' => DailySummaryBuilder::buildForDate(Carbon::today()),
+            'vandaag' => SummaryAccess::filter($user, DailySummaryBuilder::buildForDate(Carbon::today())),
         ];
 
-        $order = $this->findOrderFromQuestion($question);
+        $order = $user->can('view_order') ? $this->findOrderFromQuestion($question) : null;
         if ($order !== null) {
             $context['order'] = $order;
         }

@@ -282,7 +282,7 @@ class AuthController extends Controller
     /** Alleen back-office gebruikers; zelf-geregistreerde webshop-klanten geweigerd. */
     private function ensureBackofficeUser(User $user): void
     {
-        if (! (in_array($user->role, ['superadmin', 'admin'], true) || $user->roles->isNotEmpty())) {
+        if (! $user->hasPanelAccess()) {
             throw ValidationException::withMessages([
                 // Bewust dezelfde melding als bij foute inloggegevens, om account-enumeratie te voorkomen.
                 'email' => ['De inloggegevens zijn onjuist.'],

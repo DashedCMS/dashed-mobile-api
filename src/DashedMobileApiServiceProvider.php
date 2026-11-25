@@ -54,12 +54,26 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
         /** @var MobileApiRegistry $registry */
         $registry = $this->app->make(MobileApiRegistry::class);
         $registry->registerAbilities(['dashboard.read', 'devices.write']);
-        $registry->registerRoleAbilities([
-            'eigenaar' => ['dashboard.read'],
-            'admin' => ['dashboard.read'],
-            'shopbeheerder' => ['dashboard.read'],
-            'support-agent' => ['dashboard.read'],
-            'read-only' => ['dashboard.read'],
+        // Het dashboard heeft in het CMS geen eigen permissie: elke beheerder
+        // ziet het. devices.write krijgt iedereen (AbilityResolver).
+        $registry->registerAbilityPermissions([
+            'dashboard.read' => MobileApiRegistry::PANEL_ACCESS,
+        ]);
+
+        // Secties van het dagoverzicht met besteldata. De AI-briefing vat alle
+        // secties samen (omzet en bestellingen inbegrepen), en de verzend-
+        // secties van MyParcel en Veloyd tonen zendingen: dat pakket meldt
+        // zich zelf niet, dus staan ze hier.
+        $registry->registerSummarySectionPermissions([
+            'ai_briefing' => 'view_order',
+            'myparcel' => 'view_order',
+            'veloyd' => 'view_order',
+            // Formulieren, popups en marketing melden hun sectie via
+            // summaryContributors aan; de rechten staan hier zodat de app
+            // dezelfde grens trekt als het CMS.
+            'forms' => 'view_form',
+            'popups' => 'view_popup',
+            'marketing' => ['view_social_post', 'view_content_draft'],
         ]);
 
         // Telegram-pariteit: alle admin-meldingen die naar Telegram gaan, ook als
@@ -128,8 +142,8 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
         // er al in het scherm maar deden tot nu toe niets.
         if (method_exists($registry, 'registerNotificationTypes')) {
             $registry->registerNotificationTypes([
-                ['key' => 'newsletter.subscribed', 'label' => 'Nieuwe aanmelding', 'description' => 'Iemand heeft zich aangemeld voor een nieuwsbrieflijst.', 'group' => 'Nieuwsbrief', 'sound' => 'default', 'ability' => 'dashboard.read', 'default' => false],
-                ['key' => 'newsletter.unsubscribed', 'label' => 'Afmelding', 'description' => 'Iemand heeft zich afgemeld voor een nieuwsbrieflijst.', 'group' => 'Nieuwsbrief', 'sound' => 'default', 'ability' => 'dashboard.read', 'default' => false],
+                ['key' => 'newsletter.subscribed', 'label' => 'Nieuwe aanmelding', 'description' => 'Iemand heeft zich aangemeld voor een nieuwsbrieflijst.', 'group' => 'Nieuwsbrief', 'sound' => 'default', 'ability' => 'newsletter.read', 'default' => false],
+                ['key' => 'newsletter.unsubscribed', 'label' => 'Afmelding', 'description' => 'Iemand heeft zich afgemeld voor een nieuwsbrieflijst.', 'group' => 'Nieuwsbrief', 'sound' => 'default', 'ability' => 'newsletter.read', 'default' => false],
             ]);
         }
 
@@ -199,10 +213,14 @@ class DashedMobileApiServiceProvider extends PackageServiceProvider
 
         // Offertes. Zelfde vorm: luisteren op klassenaam, dus geen harde
         // dependency op dashed-ecommerce-core. De app heeft (nog) geen
-        // offertescherm, dus de melding opent de meldingenlijst.
+        // offertescherm, dus de melding opent de meldingenlijst. Het recht
+        // quotes.read bestaat alleen voor deze melding en volgt view_quote,
+        // zoals de offertelijst in het CMS.
+        $registry->registerAbilityPermissions(['quotes.read' => 'view_quote']);
+
         if (method_exists($registry, 'registerNotificationTypes')) {
             $registry->registerNotificationTypes([
-                ['key' => 'quote.answered', 'label' => 'Offerte beantwoord', 'description' => 'Een klant heeft een offerte geaccepteerd of afgewezen.', 'group' => 'Offertes', 'sound' => 'default', 'ability' => 'orders.read', 'default' => true],
+                ['key' => 'quote.answered', 'label' => 'Offerte beantwoord', 'description' => 'Een klant heeft een offerte geaccepteerd of afgewezen.', 'group' => 'Offertes', 'sound' => 'default', 'ability' => 'quotes.read', 'default' => true],
             ]);
         }
 

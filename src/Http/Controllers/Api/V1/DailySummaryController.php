@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Dashed\DashedCore\Services\Summary\DailySummaryBuilder;
+use Dashed\DashedMobileApi\Support\SummaryAccess;
 
 /**
  * Dag-overzicht voor de app: draait alle geregistreerde summary-contributors
@@ -33,8 +34,9 @@ class DailySummaryController extends Controller
             $date = Carbon::today();
         }
 
+        // Alleen de secties waar de gebruiker in het CMS recht op heeft.
         return response()->json([
-            'data' => DailySummaryBuilder::buildForDate($date),
+            'data' => SummaryAccess::filter($request->user(), DailySummaryBuilder::buildForDate($date)),
         ]);
     }
 }

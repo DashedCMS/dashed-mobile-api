@@ -52,6 +52,9 @@ Route::prefix('api/v1')->group(function (): void {
         // pagina in de controller (dynamisch uit de registry-meta).
         Route::get('app-pages', [AppPageController::class, 'index']);
         Route::post('app-pages/{key}/open', [AppPageController::class, 'open'])->middleware('throttle:30,1');
+        // Eenmalige inloglink (60 s) naar een willekeurige URL op de eigen host,
+        // bv. data.url van een push; elke ingelogde medewerker.
+        Route::post('web-link', [AppPageController::class, 'webLink'])->middleware('throttle:30,1');
 
         Route::get('dashboard', [DashboardController::class, 'index'])->middleware('ability:dashboard.read');
         // Dag-overzicht: alle summary-secties voor één dag (default gisteren).

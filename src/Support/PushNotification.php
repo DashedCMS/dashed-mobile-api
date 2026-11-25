@@ -205,6 +205,12 @@ class PushNotification
             $data['route'] = $this->route;
         }
 
+        // Elke push draagt bij voorkeur een absolute CMS-URL (data.url), zodat
+        // de app die kan openen als hij geen eigen scherm voor de route heeft.
+        if (empty($data['url']) && ($url = self::urlForRoute($this->route)) !== null) {
+            $data['url'] = $url;
+        }
+
         // Titel én afbeelding van elke push zijn altijd de sitenaam + het
         // sitelogo. De meegegeven titel (bv. "Nieuwe bestelling") schuift door
         // naar de body.
@@ -251,6 +257,35 @@ class PushNotification
             // anonieme of mixed-user tokens zijn) en worden niet gepersisteerd.
             $this->push->sendToTokens($this->tokens, $title, $body, $data, $iosSound, $channelId, $imageUrl, $this->category);
         }
+    }
+
+    /**
+     * CMS page for a known in-app route ("/order/{id}", "/return/{id}"), via
+     * ec-core's AdminRecordUrl when that package is installed. Null when no
+     * URL can be derived; never throws.
+     */
+    public static function urlForRoute(?string $route): ?string
+    {
+        $helper = '\Dashed\DashedEcommerceCore\Support\AdminRecordUrl';
+        if ($route === null || ! class_exists($helper)) {
+            return null;
+        }
+
+        try {
+            if (preg_match('#^/order/(\d+)/?$#', $route, $m)) {
+                return $helper::order((int) $m[1]);
+            }
+
+            if (preg_match('#^/return/(\d+)/?$#', $route, $m)) {
+                $return = \Dashed\DashedEcommerceCore\Models\OrderReturn::find((int) $m[1]);
+
+                return $return ? $helper::orderReturn($return) : null;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return null;
     }
 
     /**

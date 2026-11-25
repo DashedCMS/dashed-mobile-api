@@ -77,19 +77,101 @@ class AppPageController extends Controller
             ], 422);
         }
 
-        $token = Str::random(48);
-        Cache::put('app-page-open:' . $token, [
+        $token = $this->issueToken([
             'user_id' => $user->id,
             'key' => $key,
+            'mfa_passed' => $mfaPassed,
+        ]);
+
+        return response()->json(['url' => url('/mobile-app-page/' . $token)]);
+    }
+
+    /**
+     * Magic-link for an arbitrary page on the own host (e.g. `data.url` of a
+     * push): POST api/v1/web-link {url} → {url, expires_at}. The target URL is
+     * stored server-side with the token, never in the link itself, so the link
+     * cannot be turned into an open redirect.
+     */
+    public function webLink(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['url' => ['required', 'string', 'max:2048']]);
+
+        $target = self::ownHostUrl((string) $validated['url']);
+        if ($target === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Deze link verwijst buiten de eigen omgeving.',
+                'errors' => ['url' => ['Deze link verwijst buiten de eigen omgeving.']],
+            ], 422);
+        }
+
+        $user = $request->user();
+        $mfaPassed = $this->tokenMfaIsFresh($request);
+        if ($this->mfaApplies($user) && ! $mfaPassed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dit account gebruikt tweestapsverificatie; log opnieuw in (met code) in de app of open het CMS in de browser.',
+            ], 422);
+        }
+
+        $token = $this->issueToken([
+            'user_id' => $user->id,
+            'url' => $target,
+            'mfa_passed' => $mfaPassed,
+        ]);
+
+        return response()->json([
+            'url' => url('/mobile-app-page/' . $token),
+            'expires_at' => now()->addSeconds(self::TOKEN_TTL_SECONDS)->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Normalise a URL to an absolute http(s) URL on the own host (config app.url), or
+     * null when it points elsewhere. A path ("/dashed/orders/1") is made absolute.
+     * Backslashes, whitespace/control characters and userinfo are refused because
+     * browsers and parse_url() can disagree on the host for those.
+     */
+    public static function ownHostUrl(string $url): ?string
+    {
+        $url = trim($url);
+        if ($url === '' || preg_match('/[\\\\\s\x00-\x1F\x7F]/', $url)) {
+            return null;
+        }
+
+        // APP_URL, not url('/'): the latter follows the request's Host header.
+        $base = rtrim((string) config('app.url'), '/');
+        if (str_starts_with($url, '/') && ! str_starts_with($url, '//')) {
+            $url = $base . $url;
+        }
+
+        $parts = parse_url($url);
+        $own = parse_url($base);
+        if (! is_array($parts) || ! is_array($own)) {
+            return null;
+        }
+
+        if (! in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            || isset($parts['user']) || isset($parts['pass'])
+            || strtolower((string) ($parts['host'] ?? '')) !== strtolower((string) ($own['host'] ?? ''))
+            || ($parts['port'] ?? null) !== ($own['port'] ?? null)) {
+            return null;
+        }
+
+        return $url;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function issueToken(array $payload): string
+    {
+        $token = Str::random(48);
+        Cache::put('app-page-open:' . $token, $payload + [
             // Site-context vastleggen: de web-route heeft geen X-Site-Id, dus
             // zonder dit zou de module-URL op de verkeerde site kunnen uitkomen.
             'site_id' => (string) Sites::getActive(),
-            // Zodat de web-route de MFA-versheid van het paneel kan stempelen —
-            // anders stuurt EnsureMfaIsFresh de sessie alsnog naar een 2FA-scherm.
-            'mfa_passed' => $mfaPassed,
         ], self::TOKEN_TTL_SECONDS);
 
-        return response()->json(['url' => url('/mobile-app-page/' . $token)]);
+        return $token;
     }
 
     /**
@@ -112,22 +194,31 @@ class AppPageController extends Controller
         });
         abort_if(! is_array($payload), 403, 'Deze link is verlopen of al gebruikt.');
 
-        $meta = $this->registry->appPage((string) ($payload['key'] ?? ''));
         $user = User::find($payload['user_id'] ?? null);
-        abort_if($meta === null || $user === null, 403);
+        abort_if($user === null, 403);
 
         // Zelfde site-context als waarin de link is aangevraagd (multi-site).
         if (! empty($payload['site_id'])) {
             config(['dashed-core.dashed_site_id' => (string) $payload['site_id']]);
         }
 
-        $url = (string) value($meta['url'] ?? '');
-        abort_if($url === '', 422, 'Deze module-pagina heeft geen web-adres.');
+        if (isset($payload['url'])) {
+            // Web-link (POST api/v1/web-link): doel-URL staat server-side bij het
+            // token en wordt hier opnieuw tegen de eigen host gecontroleerd.
+            $url = self::ownHostUrl((string) $payload['url']);
+            abort_if($url === null, 422, 'Deze link verwijst buiten de eigen omgeving.');
+        } else {
+            $meta = $this->registry->appPage((string) ($payload['key'] ?? ''));
+            abort_if($meta === null, 403);
 
-        // Alleen doorsturen binnen de eigen host: een module-URL mag nooit een
-        // open redirect worden op het request dat net een sessie aanmaakte.
-        $host = parse_url($url, PHP_URL_HOST);
-        abort_if($host !== null && $host !== parse_url(url('/'), PHP_URL_HOST), 422, 'Deze module-pagina verwijst buiten de eigen omgeving.');
+            $url = (string) value($meta['url'] ?? '');
+            abort_if($url === '', 422, 'Deze module-pagina heeft geen web-adres.');
+
+            // Alleen doorsturen binnen de eigen host: een module-URL mag nooit een
+            // open redirect worden op het request dat net een sessie aanmaakte.
+            $host = parse_url($url, PHP_URL_HOST);
+            abort_if($host !== null && $host !== parse_url(url('/'), PHP_URL_HOST), 422, 'Deze module-pagina verwijst buiten de eigen omgeving.');
+        }
 
         Auth::guard('web')->login($user);
 
